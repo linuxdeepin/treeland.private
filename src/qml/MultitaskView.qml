@@ -91,6 +91,7 @@ Item {
                                             if (dragManager.item.source) {  // is dragging surface
                                                 dragManager.accept = () => {
                                                     dragManager.item.source.workspaceId = wsid
+                                                    dragManager.item.source.parent = QmlHelper.workspaceManager.workspacesById.get(wsid)
                                                 }
                                             } else {    // is dragging workspace
                                                 dragManager.accept = () => {
