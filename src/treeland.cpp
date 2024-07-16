@@ -25,6 +25,7 @@
 #include <woutputrenderwindow.h>
 #include <wrenderhelper.h>
 #include <wsocket.h>
+#include <wxwayland.h>
 
 #include <qwbackend.h>
 #include <qwcompositor.h>
@@ -48,7 +49,11 @@
 #include <QQuickView>
 #include <QTimer>
 #include <QtLogging>
+#include <qdbusinterface.h>
+#include <qdbuspendingcall.h>
+#include <qtenvironmentvariables.h>
 
+#include <memory>
 #include <pwd.h>
 #include <sys/socket.h>
 
@@ -202,7 +207,6 @@ TreeLand::TreeLand(TreeLandAppContext context)
 
                 auto envs = QProcessEnvironment::systemEnvironment();
                 envs.insert("WAYLAND_DISPLAY", helper->waylandSocket());
-                envs.insert("DISPLAY", helper->xwaylandSocket());
 
                 QProcess process;
                 process.setProgram(cmdArgs.constFirst());
@@ -416,15 +420,11 @@ bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
     m_userWaylandSocket[user] = socket;
     m_userDisplayFds[user] = fd;
 
-    DisplayManager manager("org.freedesktop.DisplayManager",
-                           "/org/freedesktop/DisplayManager",
-                           QDBusConnection::systemBus());
+    setDelayedReply(true);
 
-    const auto sessionPath = manager.lastSession();
-    if (!sessionPath.path().isEmpty()) {
-        DisplaySession session(manager.service(), sessionPath.path(), QDBusConnection::systemBus());
-        socket->setEnabled(session.userName() == user);
-    }
+    auto reply = message().createReply();
+    auto conn = connection();
+    conn.send(reply);
 
     connect(connection().interface(),
             &QDBusConnectionInterface::serviceUnregistered,
@@ -434,10 +434,34 @@ bool TreeLand::ActivateWayland(QDBusUnixFileDescriptor _fd)
                 m_userDisplayFds.remove(user);
             });
 
+    /*DisplayManager manager("org.freedesktop.DisplayManager",*/
+    /*                       "/org/freedesktop/DisplayManager",*/
+    /*                       QDBusConnection::systemBus());*/
+    /**/
+    /*const auto sessionPath = manager.lastSession();*/
+    /*if (!sessionPath.path().isEmpty()) {*/
+    /*    DisplaySession session(manager.service(), sessionPath.path(), QDBusConnection::systemBus());*/
+    /*    socket->setEnabled(session.userName() == user);*/
+    /*}*/
+
     return true;
 }
 
-QString TreeLand::XWaylandName()
+void TreeLand::UpdateXWaylandTask(XWaylandTask task)
+{
+    QMapIterator<QString, WXWayland *> i(m_xwaylands);
+    while (i.hasNext()) {
+        i.next();
+        auto key = i.key();
+        auto value = i.value();
+        if (value->displayName() == task.display) {
+            m_activateXWayland[key](task);
+            break;
+        }
+    }
+}
+
+XWaylandTask TreeLand::ActivateXWayland()
 {
     auto uid = connection().interface()->serviceUid(message().service());
     struct passwd *pw;
@@ -447,16 +471,39 @@ QString TreeLand::XWaylandName()
     Helper *helper = m_engine->singletonInstance<Helper *>("TreeLand.Utils", "Helper");
     Q_ASSERT(helper);
 
-    const QString &display = helper->xwaylandSocket();
-    qCDebug(debug) << QString("user %1 got xwayland display %2.").arg(user).arg(display);
+    setDelayedReply(true);
 
-    return display;
+    auto m = message();
+    auto conn = connection();
+
+    auto callback = [conn, m](XWaylandTask task) {
+        auto reply = m.createReply(QVariant::fromValue(task));
+        conn.send(reply);
+    };
+
+    m_activateXWayland[user] = callback;
+
+    auto *xwayland = helper->createXWayland();
+    m_xwaylands[user] = xwayland;
+
+    connect(connection().interface(),
+            &QDBusConnectionInterface::serviceUnregistered,
+            xwayland,
+            [this, user, xwayland, helper] {
+                m_activateXWayland.remove(user);
+                m_xwaylands.remove(user);
+                helper->removeXWayland(xwayland);
+            });
+
+    return {};
 }
 
 } // namespace TreeLand
 
 int main(int argc, char *argv[])
 {
+    qputenv("WLR_XWAYLAND", CMAKE_INSTALL_FULL_LIBEXECDIR "/treeland-xwayland-helper");
+
     WRenderHelper::setupRendererBackend();
 
     QWLog::init();
@@ -484,6 +531,8 @@ int main(int argc, char *argv[])
     parser.addOptions({ socket, run });
 
     parser.process(app);
+
+    qDBusRegisterMetaType<XWaylandTask>();
 
     TreeLand::TreeLand treeland({ parser.value(socket), parser.value(run) });
 

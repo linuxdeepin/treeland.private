@@ -124,17 +124,12 @@ void Helper::initProtocols(WOutputRenderWindow *window)
     m_seat->setKeyboardFocusWindow(window);
 
     auto *xdgOutputManager = m_server->attach<WXdgOutputManager>(m_outputLayout);
-    auto *xwaylandOutputManager = m_server->attach<WXdgOutputManager>(m_outputLayout);
+    m_xwaylandOutputManager = m_server->attach<WXdgOutputManager>(m_outputLayout);
 
-    xwaylandOutputManager->setScaleOverride(1.0);
+    m_xwaylandOutputManager->setScaleOverride(1.0);
 
-    xdgOutputManager->setTargetClients(xwaylandOutputManager->targetClients(), true);
-    xwaylandOutputManager->setTargetClients(xwaylandOutputManager->targetClients(), false);
-
-    auto xwayland_lazy = true;
-    auto *xwayland = m_server->attach<WXWayland>(m_compositor, xwayland_lazy);
-    xwayland->setSeat(m_seat);
-    setXWaylandSocket(xwayland->displayName());
+    /*xdgOutputManager->setTargetClients(m_xwaylandOutputManager->targetClients(), true);*/
+    /*m_xwaylandOutputManager->setTargetClients(m_xwaylandOutputManager->targetClients(), false);*/
 
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     Q_EMIT xdgDecorationManagerChanged();
@@ -210,45 +205,6 @@ void Helper::initProtocols(WOutputRenderWindow *window)
             &WInputMethodHelper::inputPopupSurfaceV2Removed,
             m_inputPopupCreator,
             &WQmlCreator::removeByOwner);
-
-    connect(xwayland, &WXWayland::ready, this, [this, xwayland, xwaylandOutputManager]() {
-        auto clients = xwaylandOutputManager->targetClients();
-        clients.append(xwayland->waylandClient());
-        xwaylandOutputManager->setTargetClients(clients, true);
-    });
-
-    connect(xwayland,
-            &WXWayland::surfaceAdded,
-            this,
-            [this, engine, xwayland](WXWaylandSurface *surface) {
-                surface->safeConnect(&QWXWaylandSurface::associate, this, [this, surface, engine] {
-                    auto initProperties = engine->newObject();
-                    initProperties.setProperty("waylandSurface", engine->toScriptValue(surface));
-
-                    QObject *helper = engine->singletonInstance<QObject *>("TreeLand", "QmlHelper");
-
-                    QObject *workspaceManager =
-                        helper->property("workspaceManager").value<QObject *>();
-                    auto *layoutOrder =
-                        workspaceManager->property("layoutOrder").value<QAbstractListModel *>();
-                    QJSValue retValue;
-                    auto data = QMetaObject::invokeMethod(layoutOrder,
-                                                          "get",
-                                                          Qt::DirectConnection,
-                                                          Q_RETURN_ARG(QJSValue, retValue),
-                                                          Q_ARG(int, m_currentWorkspaceId));
-                    auto wid = retValue.toQObject()->property("wsid");
-
-                    qCDebug(HelperDebugLog) << "new xwayland surface, wid: " << wid;
-
-                    initProperties.setProperty("workspaceId", engine->toScriptValue(wid));
-
-                    m_xwaylandCreator->add(surface, initProperties);
-                });
-                surface->safeConnect(&QWXWaylandSurface::dissociate, this, [this, surface] {
-                    m_xwaylandCreator->removeByOwner(surface);
-                });
-            });
 
     connect(xdgShell,
             &WXdgShell::surfaceAdded,
@@ -1003,21 +959,9 @@ QString Helper::waylandSocket() const
     return m_waylandSocket;
 }
 
-QString Helper::xwaylandSocket() const
-{
-    return m_xwaylandSocket;
-}
-
 void Helper::setWaylandSocket(const QString &socketFile)
 {
     m_waylandSocket = socketFile;
-
-    emit socketFileChanged();
-}
-
-void Helper::setXWaylandSocket(const QString &socketFile)
-{
-    m_xwaylandSocket = socketFile;
 
     emit socketFileChanged();
 }
@@ -1039,6 +983,56 @@ QString Helper::clientName(Waylib::Server::WSurface *surface) const
 
     qDebug() << "Program name for PID" << pid << "is" << programName;
     return programName;
+}
+
+WXWayland *Helper::createXWayland()
+{
+    auto *xwayland = m_server->attach<WXWayland>(m_compositor, false);
+    xwayland->setSeat(m_seat);
+
+    connect(xwayland, &WXWayland::ready, this, [this, xwayland]() {
+        qCDebug(HelperDebugLog) << "XWayland ready";
+        /*auto clients = m_xwaylandOutputManager->targetClients();*/
+        /*clients.append(xwayland->waylandClient());*/
+        /*m_xwaylandOutputManager->setTargetClients(clients, true);*/
+    });
+
+    connect(xwayland, &WXWayland::surfaceAdded, this, [this, xwayland](WXWaylandSurface *surface) {
+        QQmlApplicationEngine *engine = qobject_cast<QQmlApplicationEngine *>(qmlEngine(this));
+        surface->safeConnect(&QWXWaylandSurface::associate, this, [this, surface, engine] {
+            auto initProperties = engine->newObject();
+            initProperties.setProperty("waylandSurface", engine->toScriptValue(surface));
+
+            QObject *helper = engine->singletonInstance<QObject *>("TreeLand", "QmlHelper");
+
+            QObject *workspaceManager = helper->property("workspaceManager").value<QObject *>();
+            auto *layoutOrder =
+                workspaceManager->property("layoutOrder").value<QAbstractListModel *>();
+            QJSValue retValue;
+            auto data = QMetaObject::invokeMethod(layoutOrder,
+                                                  "get",
+                                                  Qt::DirectConnection,
+                                                  Q_RETURN_ARG(QJSValue, retValue),
+                                                  Q_ARG(int, m_currentWorkspaceId));
+            auto wid = retValue.toQObject()->property("wsid");
+
+            qCDebug(HelperDebugLog) << "new xwayland surface, wid: " << wid;
+
+            initProperties.setProperty("workspaceId", engine->toScriptValue(wid));
+
+            m_xwaylandCreator->add(surface, initProperties);
+        });
+        surface->safeConnect(&QWXWaylandSurface::dissociate, this, [this, surface] {
+            m_xwaylandCreator->removeByOwner(surface);
+        });
+    });
+
+    return xwayland;
+}
+
+void Helper::removeXWayland(WXWayland *xwayland)
+{
+    xwayland->safeDeleteLater();
 }
 
 void Helper::closeSurface(Waylib::Server::WSurface *surface)

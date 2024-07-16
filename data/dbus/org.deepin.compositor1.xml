@@ -5,8 +5,13 @@
       <arg type="h" direction="in" name="fd"/>
       <arg type="b" direction="out" name="result"/>
     </method>
-    <method name="XWaylandName">
-      <arg type="s" direction="out" name="result"/>
+    <method name="ActivateXWayland">
+│     <arg type="(ahhss)" direction="out"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="XWaylandTask"/>
+    </method>
+    <method name="UpdateXWaylandTask">
+│     <arg type="(ahhss)" direction="in" name="task"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="XWaylandTask"/>
     </method>
   </interface>
 </node>

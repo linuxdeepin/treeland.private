@@ -3,9 +3,13 @@
 
 #pragma once
 
+#include "types/types.h"
+
 #include <WServer>
 #include <wsocket.h>
+#include <wxwayland.h>
 
+#include <QDBusArgument>
 #include <QDBusContext>
 #include <QDBusUnixFileDescriptor>
 #include <QGuiApplication>
@@ -41,7 +45,8 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     bool ActivateWayland(QDBusUnixFileDescriptor fd);
-    QString XWaylandName();
+    XWaylandTask ActivateXWayland();
+    void UpdateXWaylandTask(XWaylandTask task);
 
 private Q_SLOTS:
     void connected();
@@ -60,5 +65,7 @@ private:
     QQmlApplicationEngine *m_engine;
     QMap<QString, std::shared_ptr<Waylib::Server::WSocket>> m_userWaylandSocket;
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> m_userDisplayFds;
+    QMap<QString, Waylib::Server::WXWayland *> m_xwaylands;
+    QMap<QString, std::function<void(XWaylandTask)>> m_activateXWayland;
 };
 } // namespace TreeLand

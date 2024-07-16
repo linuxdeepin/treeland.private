@@ -28,6 +28,8 @@ class WQuickCursor;
 class WQmlCreator;
 class WOutputRenderWindow;
 class WInputMethodHelper;
+class WXdgOutputManager;
+class WXWayland;
 WAYLIB_SERVER_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -58,7 +60,6 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(WSurfaceItem* resizingItem READ resizingItem NOTIFY resizingItemChanged FINAL)
     Q_PROPERTY(WSurfaceItem *movingItem READ movingItem WRITE setMovingItem NOTIFY movingItemChanged FINAL)
     Q_PROPERTY(QString waylandSocket READ waylandSocket WRITE setWaylandSocket NOTIFY socketFileChanged FINAL)
-    Q_PROPERTY(QString xwaylandSocket READ xwaylandSocket WRITE setXWaylandSocket NOTIFY socketFileChanged FINAL)
     Q_PROPERTY(QString currentUser READ currentUser WRITE setCurrentUser NOTIFY currentUserChanged FINAL)
     Q_PROPERTY(bool switcherOn MEMBER m_switcherOn NOTIFY switcherOnChanged FINAL)
     Q_PROPERTY(bool switcherEnabled MEMBER m_switcherEnabled FINAL)
@@ -109,12 +110,14 @@ public:
     void setCurrentWorkspaceId(int currentWorkspaceId);
 
     QString waylandSocket() const;
-    QString xwaylandSocket() const;
 
     Q_INVOKABLE QString clientName(Waylib::Server::WSurface *surface) const;
 
     bool addAction(const QString &user, QAction *action);
     void removeAction(const QString &user, QAction *action);
+
+    WXWayland *createXWayland();
+    void removeXWayland(WXWayland *xwayland);
 
     Q_INVOKABLE void closeSurface(Waylib::Server::WSurface *surface);
 
@@ -197,6 +200,7 @@ protected:
     QPointer<WSeat> m_seat;
 
     WXdgDecorationManager *m_xdgDecorationManager;
+    WXdgOutputManager *m_xwaylandOutputManager = nullptr;
 
     WQmlCreator *m_outputCreator = nullptr;
     WQmlCreator *m_xdgShellCreator = nullptr;
@@ -225,11 +229,9 @@ protected:
 
 private:
     void setWaylandSocket(const QString &socketFile);
-    void setXWaylandSocket(const QString &socketFile);
 
 private:
     QString m_waylandSocket;
-    QString m_xwaylandSocket;
     QString m_currentUser;
     std::map<QString, std::vector<QAction *>> m_actions;
     bool m_switcherOn = false;

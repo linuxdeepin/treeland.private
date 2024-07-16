@@ -14,6 +14,9 @@ add_subdirectory(greeter)
 add_subdirectory(treeland-wallpaper)
 add_subdirectory(treeland-shortcut)
 
+set_source_files_properties("${CMAKE_SOURCE_DIR}/data/dbus/org.deepin.compositor1.xml" PROPERTIES
+   INCLUDE "types/types.h"
+)
 qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/data/dbus/org.deepin.compositor1.xml" "treeland.h" TreeLand::TreeLand)
 
 qt_add_executable(treeland override_dtkdeclarative_qml.qrc)
@@ -22,6 +25,7 @@ target_sources(treeland PUBLIC
 FILE_SET HEADERS
 FILES
     treeland.h
+    types/types.h
 )
 
 target_sources(treeland PRIVATE
@@ -86,3 +90,15 @@ target_link_libraries(treeland-sd
 )
 
 install(TARGETS treeland-sd RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
+
+qt_add_executable(treeland-xwayland-helper
+    xwayland-wrapper.cpp
+    ${DBUS_INTERFACE}
+)
+
+target_link_libraries(treeland-xwayland-helper
+    PRIVATE
+        Qt${QT_MAJOR_VERSION}::DBus
+        PkgConfig::Systemd
+)
+install(TARGETS treeland-xwayland-helper RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")

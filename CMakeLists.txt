@@ -52,6 +52,7 @@ set(TREELAND_DATA_DIR           "${CMAKE_INSTALL_FULL_DATADIR}/treeland/"       
 set(COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"                  CACHE PATH      "Components translations directory")
 
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_DATA_DIR}\"")
+add_compile_definitions("CMAKE_INSTALL_FULL_LIBEXECDIR=\"${CMAKE_INSTALL_FULL_LIBEXECDIR}\"")
 
 add_subdirectory(src)
 add_subdirectory(data)

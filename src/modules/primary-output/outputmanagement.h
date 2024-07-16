@@ -27,6 +27,10 @@ public:
     void newOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void removeOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
 
+    QByteArrayView interfaceName() const override {
+        return "treeland_output_manager_v1";
+    }
+
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;

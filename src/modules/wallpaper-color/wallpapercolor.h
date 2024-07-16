@@ -18,6 +18,10 @@ public:
     explicit WallpaperColorV1(QObject *parent = nullptr);
     Q_INVOKABLE void updateWallpaperColor(const QString &output, bool isDarkType);
 
+    QByteArrayView interfaceName() const override {
+        return "wallpaper_color_manager_v1";
+    }
+
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;

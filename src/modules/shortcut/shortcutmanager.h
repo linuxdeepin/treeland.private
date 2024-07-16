@@ -20,6 +20,10 @@ class ShortcutV1 : public QObject, public Waylib::Server::WServerInterface
 public:
     explicit ShortcutV1(Helper *helper, QObject *parent = nullptr);
 
+    QByteArrayView interfaceName() const override {
+        return "treeland_shortcut_manager_v1";
+    }
+
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;

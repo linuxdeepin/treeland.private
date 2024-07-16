@@ -51,6 +51,10 @@ public:
 
     Q_INVOKABLE ForeignToplevelAttached *Attached(QObject *target);
 
+    QByteArrayView interfaceName() const override {
+        return "ztreeland_foreign_toplevel_manager_v1";
+    }
+
 Q_SIGNALS:
     void requestMaximize(WToplevelSurface *surface,
                          treeland_foreign_toplevel_handle_v1_maximized_event *event);

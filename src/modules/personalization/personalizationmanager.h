@@ -81,6 +81,10 @@ public:
     void setCursorSize(const QSize &size);
     Q_INVOKABLE QString getOutputName(const WOutput *w_output);
 
+    QByteArrayView interfaceName() const override {
+        return "treeland_personalization_manager_v1";
+    }
+
 Q_SIGNALS:
     void backgroundTypeChanged(WSurface *surface, uint32_t type);
     void userIdChanged(uid_t uid);

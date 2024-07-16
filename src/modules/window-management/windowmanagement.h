@@ -24,6 +24,10 @@ public:
     DesktopState desktopState();
     void setDesktopState(DesktopState state);
 
+    QByteArrayView interfaceName() const override {
+        return "window_management_v1";
+    }
+
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
