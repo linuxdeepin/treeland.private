@@ -68,6 +68,7 @@ Item {
                             border.width: workspaceManager.workspacesById.get(wsid).isCurrentWorkspace ? 2 : 0
                             border.color: "blue"
                             color: "transparent"
+                            z: drg.active ? 1 : 0
                             Item {
                                 anchors {
                                     fill: parent
@@ -179,6 +180,7 @@ Item {
                                     }
                                     dragManager.item = null
                                 }
+                                yAxis.enabled: false
                             }
                         }
                     }
@@ -195,6 +197,12 @@ Item {
                             width: Math.min(parent.width,
                                 model.count * height * outputPlacementItem.width / outputPlacementItem.height)
                             anchors.horizontalCenter: parent.horizontalCenter
+                            displaced: Transition {
+                                NumberAnimation {
+                                    properties: "x"
+                                    easing.type: Easing.OutQuad
+                                }
+                            }
                         }
                         D.RoundButton {
                             id: wsCreateBtn
@@ -266,44 +274,44 @@ Item {
                                     getRatio: (d) => d.item.width / d.item.height
                                     enterAnimationEnabled: true
                                     delegate: Item {
-                                            property SurfaceItem source: modelData.item
+                                        property SurfaceItem source: modelData.item
 
-                                            property real ratio: source.width / source.height
-                                            onRatioChanged: {
-                                                grid.calcLayout()
-                                            }
+                                        property real ratio: source.width / source.height
+                                        onRatioChanged: {
+                                            grid.calcLayout()
+                                        }
 
-                                            property var initialState
-                                            property real animRatio: 1
-                                            function conv(y, item = parent) { // convert to outputPlacementItem's coord
-                                                return mapToItem(outputPlacementItem, mapFromItem(item, 0, y)).y
-                                            }
-                                            onYChanged: {
-                                                // ori * ratio(y=destY) = destw, ori * ratio(y=oriY) = ori
-                                                const destW = 100
-                                                const destY = conv(workspacesList.height, workspacesList)
-                                                const deltY = Math.max(conv(Math.min(y, initialState.y)) - destY, 0)
-                                                const fullY = conv(0) - destY
-                                                animRatio = ( (( fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
-                                            }
-
-                                            width: displayWidth * animRatio
-                                            height: width * source.height / source.width
-                                            clip: true
-                                            z: drg.active ? 1 : 0   // dragged item should float
-                                            property bool highlighted: dragManager.item == this || (!dragManager.item && hvhdlr.hovered)
-                                            HoverHandler {
-                                                id: hvhdlr
-                                            }
-                                            TapHandler {
-                                                onTapped: root.exit(source)
-                                            }
-                                            DragHandler {
-                                                id: drg
-                                                property var curState
-                                                onActiveChanged: if (active) {
+                                        property var initialState
+                                        property real animRatio: 1
+                                        property point cursorPosition
+                                        property real cursorXRatio
+                                        property real cursorYRatio
+                                        function conv(y, item = parent) { // convYert to outputPlacementItem's coord
+                                            return mapToItem(outputPlacementItem, mapFromItem(item, 0, y)).y
+                                        }
+                                        width: displayWidth * animRatio
+                                        height: width * source.height / source.width
+                                        clip: true
+                                        z: mouseArea.drag.active ? 1 : 0   // dragged item should float
+                                        property bool highlighted: dragManager.item === this || (!dragManager.item && mouseArea.containsMouse)
+                                        MouseArea {
+                                            id: mouseArea
+                                            anchors.fill: parent
+                                            drag.target: parent
+                                            hoverEnabled: true
+                                            preventStealing: false
+                                            onClicked: root.exit(source)
+                                            property real destY
+                                            property real fullY
+                                            drag.onActiveChanged: {
+                                                if (drag.active) {
                                                     dragManager.item = parent
                                                     initialState = {x: parent.x, y: parent.y, width: parent.width}
+                                                    cursorPosition = mapToItem(parent, Qt.point(mouseX, mouseY))
+                                                    cursorXRatio = cursorPosition.x / parent.width
+                                                    cursorYRatio = cursorPosition.y / parent.height
+                                                    destY = conv(workspacesList.height, workspacesList)
+                                                    fullY = conv(cursorPosition.y, parent) - destY
                                                 } else {
                                                     if (dragManager.accept) {
                                                         dragManager.accept()
@@ -315,44 +323,55 @@ Item {
                                                     dragManager.item = null
                                                 }
                                             }
-                                            Rectangle {
-                                                anchors.fill: parent
-                                                color: "transparent"
-                                                border.width: highlighted ? 2 : 0
-                                                border.color: "blue"
-                                                radius: 8
-                                            }
-                                            ShaderEffectSource {
-                                                anchors {
-                                                    fill: parent
-                                                    margins: 3
-                                                }
-                                                live: true
-                                                // no hidesource, may conflict with workspace thumb
-                                                smooth: true
-                                                sourceItem: source
-                                            }
-                                            Control {
-                                                id: titleBox
-                                                anchors {
-                                                    bottom: parent.bottom
-                                                    horizontalCenter: parent.horizontalCenter
-                                                    margins: 10
-                                                }
-                                                width: Math.min(implicitContentWidth + 2 * padding, parent.width * .7)
-                                                padding: 10
-                                                visible: highlighted
-
-                                                contentItem: Text {
-                                                    text: source.waylandSurface.title
-                                                    elide: Qt.ElideRight
-                                                }
-                                                background: Rectangle {
-                                                    color: Qt.rgba(255, 255, 255, .2)
-                                                    radius: 5
+                                            onPositionChanged: {
+                                                if (drag.active) {
+                                                    const destW = 100
+                                                    const cursor = mapToItem(parent.parent, Qt.point(mouseX, mouseY))
+                                                    const deltY = Math.max(conv(Math.min(cursor.y, mapToItem(parent.parent, mapFromItem(parent, cursorPosition)).y), parent.parent) - destY, 0)
+                                                    animRatio = (((fullY - deltY) / fullY) * (destW - initialState.width) + initialState.width) / initialState.width
+                                                    parent.x = cursor.x - width * cursorXRatio
+                                                    parent.y = cursor.y - height * cursorYRatio
                                                 }
                                             }
                                         }
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            color: "transparent"
+                                            border.width: highlighted ? 2 : 0
+                                            border.color: "blue"
+                                            radius: 8
+                                        }
+                                        ShaderEffectSource {
+                                            anchors {
+                                                fill: parent
+                                                margins: 3
+                                            }
+                                            live: true
+                                            // no hidesource, may conflict with workspace thumb
+                                            smooth: true
+                                            sourceItem: source
+                                        }
+                                        Control {
+                                            id: titleBox
+                                            anchors {
+                                                bottom: parent.bottom
+                                                horizontalCenter: parent.horizontalCenter
+                                                margins: 10
+                                            }
+                                            width: Math.min(implicitContentWidth + 2 * padding, parent.width * .7)
+                                            padding: 10
+                                            visible: highlighted && source.shellSurface.title !== "" && !mouseArea.drag.active
+
+                                            contentItem: Text {
+                                                text: source.shellSurface.title
+                                                elide: Qt.ElideRight
+                                            }
+                                            background: Rectangle {
+                                                color: Qt.rgba(255, 255, 255, .2)
+                                                radius: 5
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
