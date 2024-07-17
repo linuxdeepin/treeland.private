@@ -46,10 +46,10 @@ SurfaceItemFactory {
         parent: root.parent
         visible: false // NOTE: by default
         shellSurface: wSurface
-        topPadding: decoration.visible ? decoration.topMargin : 0
-        bottomPadding: decoration.visible ? decoration.bottomMargin : 0
-        leftPadding: decoration.visible ? decoration.leftMargin : 0
-        rightPadding: decoration.visible ? decoration.rightMargin : 0
+        topPadding: decoration.enable ? decoration.topMargin : 0
+        bottomPadding: decoration.enable ? decoration.bottomMargin : 0
+        leftPadding: decoration.enable ? decoration.leftMargin : 0
+        rightPadding: decoration.enable ? decoration.rightMargin : 0
         focus: wSurface === Helper.activatedSurface
         resizeMode:
             if (!surfaceItem.effectiveVisible)
@@ -134,7 +134,7 @@ SurfaceItemFactory {
         ]
     }
 
-    property var store: {}
+    property var store: ({})
     property int storeNormalWidth: undefined
     property bool isRestoring: false
     property bool aboutToRestore: false
@@ -155,7 +155,7 @@ SurfaceItemFactory {
             saveState()
     }
     onStoreChanged: {
-        storeNormalWidth = store.normal.width
+        storeNormalWidth = store.normal?.width ?? 0
     }
     Component.onCompleted: {
         saveState() // save initial state
@@ -194,7 +194,7 @@ SurfaceItemFactory {
 
             if (outputCounter == 0 && helper.mapped) {
                 const pos = QmlHelper.winposManager.nextPos(wSurface.appId, surfaceItem.parent, surfaceItem)
-                surfaceItem.move(pos)
+                move(pos)
             }
         }
     }

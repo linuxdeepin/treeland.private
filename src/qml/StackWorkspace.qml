@@ -49,6 +49,7 @@ FocusScope {
 
     property var workspaceManager: QmlHelper.workspaceManager
     property var currentWorkspaceId: Helper.currentWorkspaceId
+    // property int workspaceSwitchOverflow: 0
 
     Connections {
         target: workspaceManager.layoutOrder
@@ -93,6 +94,41 @@ FocusScope {
             anchors.fill: parent
             delegate: ToplevelContainer {
                 id: container
+                // property int showWeight: 100
+                // states: [
+                //     State {
+                //         name: "invisible"
+                //         when: !isCurrentWorkspace
+                //         PropertyChanges {
+                //             target: container
+                //             x: workspaceRelativeId < currentWorkspaceId ? -parent.width : parent.width
+                //             showWeight: 0
+                //             anchors.fill: null
+                //         }
+                //     }
+                // ]
+                // transitions: [
+                //     Transition {
+                //         from: ""
+                //         to: "invisible"
+                //         NumberAnimation {
+                //             target: container
+                //             properties: "x,showWeight"
+                //             duration: 300
+                //             easing.type: Easing.InOutQuad
+                //         }
+                //     },
+                //     Transition {
+                //         from: "invisible"
+                //         to: ""
+                //         NumberAnimation {
+                //             target: container
+                //             property: "x"
+                //             duration: 300
+                //             easing.type: Easing.InOutQuad
+                //         }
+                //     }
+                // ]
                 objectName: `ToplevelContainer ${wsid}`
                 required property int index
                 required property int wsid
@@ -100,12 +136,40 @@ FocusScope {
                 workspaceId: wsid
                 workspaceRelativeId: index
                 visible: isCurrentWorkspace
-                focus: visible
+                focus: isCurrentWorkspace
                 anchors.fill: parent
                 Component.onCompleted: {
                     workspaceManager.workspacesById.set(workspaceId, this)
                 }
 
+                // SequentialAnimation on x {
+                //     id: bounceAnimation
+                //     NumberAnimation {
+                //         to: -workspaceSwitchOverflow * parent.width * 0.3
+                //         duration: 200
+                //         easing.type: Easing.OutQuad
+                //     }
+                //     NumberAnimation {
+                //         to: 0
+                //         duration: 150
+                //         easing.type: Easing.InQuad
+                //     }
+                //     ScriptAction {
+                //         script: workspaceSwitchOverflow = 0
+                //     }
+                // }
+
+                // Connections {
+                //     target: root
+                //     function onWorkspaceSwitchOverflowChanged() {
+                //         if (workspaceSwitchOverflow !== 0) {
+                //             container.anchors.fill = null
+                //             bounceAnimation.start()
+                //         } else {
+                //             container.anchors.fill = container.parent
+                //         }
+                //     }
+                // }
                 Connections {
                     target: Helper
                     function onActivatedSurfaceChanged() {
@@ -384,6 +448,7 @@ FocusScope {
         anchors.fill: parent
         sourceComponent: Component {
             MultitaskView {
+                id: taskviewCom
                 anchors.fill: parent
                 focus: false
                 currentWorkspaceId: root.currentWorkspaceId
@@ -440,15 +505,27 @@ FocusScope {
     Connections {
         target: QmlHelper.shortcutManager
         function onMultitaskViewToggled() {
-            multitaskView.active = !multitaskView.active
+            if (!multitaskView.active) {
+                multitaskView.active = true
+            } else {
+                multitaskView.item.exit()
+            }
         }
         function onNextWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            currentWorkspaceId = (currentWorkspaceId + 1) % nWorkspaces
+            if (currentWorkspaceId + 1 === nWorkspaces) {
+                // root.workspaceSwitchOverflow = 1 // overflow to right 1
+            } else {
+                currentWorkspaceId = currentWorkspaceId + 1
+            }
         }
         function onPrevWorkspace() {
             const nWorkspaces = workspaceManager.layoutOrder.count
-            currentWorkspaceId = (currentWorkspaceId - 1 + nWorkspaces) % nWorkspaces
+            if (currentWorkspaceId - 1 === -1) {
+                // root.workspaceSwitchOverflow = -1 // overflow to left 1
+            } else {
+                currentWorkspaceId = currentWorkspaceId - 1
+            }
         }
         function onMoveToNeighborWorkspace(d) {
             const nWorkspaces = workspaceManager.layoutOrder.count
