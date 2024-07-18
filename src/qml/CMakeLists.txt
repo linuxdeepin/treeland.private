@@ -32,6 +32,8 @@ qt_add_qml_module(treeland-qml
         ToplevelContainer.qml
         NewAnimation.qml
         Animations/LayerShellAnimation.qml
+        WindowThumbnailDelegate.qml
+        SwitcherThumbnailHighlightDelegate.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
