@@ -228,7 +228,6 @@ protected:
         QPointF cursorStartMovePosition;
         QPointF surfacePosOfStartMoveResize;
         QSizeF surfaceSizeOfStartMoveResize;
-        bool threefingerMove = false;
         Qt::Edges resizeEdgets;
         WSurfaceItem *resizingItem = nullptr;
         WSurfaceItem *movingItem = nullptr;
@@ -238,7 +237,7 @@ private:
     void setWaylandSocket(const QString &socketFile);
     void setXWaylandSocket(const QString &socketFile);
     QVariant workspaceId(QQmlApplicationEngine *) const;
-    bool doGesture(WSeat *seat, QInputEvent *event);
+    bool doGesture(QInputEvent *event);
 
 private:
     QString m_waylandSocket;
