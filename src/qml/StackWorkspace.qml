@@ -502,6 +502,7 @@ FocusScope {
         function onMultitaskViewToggled() {
             if (!multitaskView.active) {
                 multitaskView.active = true
+                multitaskView.item.entry(MultitaskView.ActiveMethod.ShortcutKey)
             } else {
                 multitaskView.item.exit()
             }
@@ -535,6 +536,18 @@ FocusScope {
             surfaceItem.workspaceId = workspaceManager.layoutOrder.get(relId).wsid
             // change workspace since no activatedSurface change
             currentWorkspaceId = relId
+        }
+    }
+    Connections {
+        target: Helper.multiTaskViewGesture
+
+        onStatusChanged: (status) => {
+            if (status === 1 || status === 2 || status ===3) {
+                multitaskView.active = true
+                multitaskView.item.entry(MultitaskView.ActiveMethod.Gesture)
+            } else {
+                multitaskView.active = false
+            }
         }
     }
 }
