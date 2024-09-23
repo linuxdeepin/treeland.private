@@ -6,7 +6,9 @@
 #include "dde-shell-protocol.h"
 
 #include <wayland-server-core.h>
+
 #include <wsurface.h>
+#include <wseat.h>
 
 #include <qwdisplay.h>
 
@@ -14,45 +16,35 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class treeland_dde_shell_manager_v1;
-
-class treeland_window_overlap_checker : public QObject
+class treeland_dde_shell_surface : public QObject
 {
     Q_OBJECT
 public:
-    explicit treeland_window_overlap_checker(struct wl_client *client,
-                                             struct wl_resource *resource,
-                                             uint32_t id);
-    ~treeland_window_overlap_checker();
+    ~treeland_dde_shell_surface();
+    bool treeland_dde_shell_surface_is_mapped_to_wsurface(WSurface *surface);
 
-    enum Anchor {
-        TOP = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_TOP,
-        RIGHT = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_RIGHT,
-        BOTTOM = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_BOTTOM,
-        LEFT = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_LEFT,
+    enum Layer {
+        LAYER_SUPER_OVERLAY,
     };
-    Q_ENUM(Anchor)
+    Q_ENUM(Layer)
 
-    // FIXME: change to function
-    struct wlr_output *m_output;
-    QSize m_size;
-    Anchor m_anchor;
+    treeland_dde_shell_manager_v1 *m_manager{ nullptr };
+    wl_resource *m_resource{ nullptr };
+    wl_resource *m_surface_resource{ nullptr };
 
-    void sendOverlapped(bool overlapped);
+    std::optional<QPoint> m_surfacePos;
+    std::optional<Layer> m_layer;
+    // if m_yOffset has_value, preventing surface from being displayed beyond the edge of the output.
+    std::optional<int32_t> m_yOffset;
+    std::optional<bool> m_skipSwitcher;
+    std::optional<bool> m_skipDockPreView;
+    std::optional<bool> m_skipMutiTaskView;
 
 Q_SIGNALS:
     void before_destroy();
-    void refresh();
-
-private:
-    friend class treeland_dde_shell_manager_v1;
-    struct wl_resource *m_resource;
-
-private:
-    treeland_dde_shell_manager_v1 *m_manager{ nullptr };
-    bool m_alreadySend{ false };
-    bool m_overlapped{ false };
 };
+
+class treeland_dde_active;
 
 class treeland_dde_shell_manager_v1 : public QObject
 {
@@ -67,15 +59,75 @@ public:
     wl_list resources;
 
     static treeland_dde_shell_manager_v1 *create(QW_NAMESPACE::qw_display *display);
+    void addWindowOverlapChecker(treeland_window_overlap_checker *handle);
+    void addShellSurface(treeland_dde_shell_surface *handle);
+    void addDdeActive(treeland_dde_active *handle);
 
 Q_SIGNALS:
     void before_destroy();
     void windowOverlapCheckerCreated(treeland_window_overlap_checker *handle);
-
-private:
-    friend class treeland_window_overlap_checker;
-    void addWindowOverlapChecker(treeland_window_overlap_checker *handle);
+    void shellSurfaceCreated(treeland_dde_shell_surface *handle);
+    void ddeActiveCreated(treeland_dde_active *handle);
+    void positionChanged(treeland_dde_shell_surface *handle, QPoint pos);
+    void layerChanged(treeland_dde_shell_surface *handle, treeland_dde_shell_surface::Layer layer);
+    void yOffsetChanged(treeland_dde_shell_surface *handle, int32_t offset);
+    void skipSwitcherChanged(treeland_dde_shell_surface *handle, bool skip);
+    void skipDockPreViewChanged(treeland_dde_shell_surface *handle, bool skip);
+    void skipMutiTaskViewChanged(treeland_dde_shell_surface *handle, bool skip);
 
 private:
     QList<treeland_window_overlap_checker *> m_checkHandles;
+    QList<treeland_dde_shell_surface *> m_surfaceHandles;
+    QList<treeland_dde_active *> m_ddeActiveHandles;
+
+    friend class DDEShellV1;
+};
+
+class treeland_window_overlap_checker : public QObject
+{
+    Q_OBJECT
+public:
+    ~treeland_window_overlap_checker();
+
+    enum Anchor {
+        TOP = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_TOP,
+        RIGHT = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_RIGHT,
+        BOTTOM = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_BOTTOM,
+        LEFT = TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_LEFT,
+    };
+    Q_ENUM(Anchor)
+
+    // FIXME: change to function
+    struct wlr_output *m_output;
+    QSize m_size;
+    Anchor m_anchor;
+    treeland_dde_shell_manager_v1 *m_manager{ nullptr };
+    wl_resource *m_resource{ nullptr };
+
+    void sendOverlapped(bool overlapped);
+
+Q_SIGNALS:
+    void before_destroy();
+    void refresh();
+
+private:
+    bool m_alreadySend{ false };
+    bool m_overlapped{ false };
+};
+
+class treeland_dde_active : public QObject
+{
+    Q_OBJECT
+public:
+    ~treeland_dde_active();
+
+    void send_active_in(uint32_t reason);
+    void send_active_out(uint32_t reason);
+    bool treeland_dde_active_is_mapped_to_wseat(QPointer<WSeat> seat);
+
+    wl_resource *m_resource{ nullptr };
+    wl_resource *m_seat_resource{ nullptr };
+
+Q_SIGNALS:
+    void before_destroy();
 };

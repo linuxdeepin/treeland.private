@@ -261,6 +261,8 @@ private:
     void setXWaylandSocket(const QString &socketFile);
     QVariant workspaceId(QQmlApplicationEngine *) const;
     bool doGesture(QInputEvent *event);
+    template<typename T>
+    T protocolObjectFromeQmlEngine(QAnyStringView uri, QAnyStringView typeName);
 
 private:
     QString m_waylandSocket;

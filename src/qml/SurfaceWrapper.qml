@@ -23,11 +23,19 @@ SurfaceItemFactory {
     property var ddeshellMapper: root.surfaceItem.DDEShell
     property int outputCounter: 0
     property bool isMinimized: helper.isMinimized
+    // layer shell should ignore the skip... property
+    property bool skipSwitcher: (typeof wSurface === "WaylandLayerSurface") ? ((DDEShellV1.isDdeShellSurface(wSurface.surface)
+                                 && DDEShellV1.isSurfaceSkipSwitcherInitialized(wSurface.surface)) ? true : false) : true
+    property bool skipDockPreView: (typeof wSurface === "WaylandLayerSurface") ? ((DDEShellV1.isDdeShellSurface(wSurface.surface)
+                                    && DDEShellV1.isSurfaceSkipDockPreViewInitialized(wSurface.surface)) ? true : false) : true
+    property bool skipMutiTaskView: (typeof wSurface === "WaylandLayerSurface") ? ((DDEShellV1.isDdeShellSurface(wSurface.surface)
+                                     && DDEShellV1.isSurfaceSkipMutiTaskViewInitialized(wSurface.surface)) ? true : false) : true
     property alias outputs: outputs
     property alias decoration: decoration
     readonly property XWaylandSurfaceItem asXwayland: {surfaceItem as XWaylandSurfaceItem}
     readonly property XdgSurfaceItem asXdg: {surfaceItem as XdgSurfaceItem}
     readonly property bool hasDecoration: personalizationMapper.noTitlebar || (decoration.enable && !helper.isFullScreen)
+    readonly property int fixForLevel: 2
     z: {
         if (Helper.clientName(wSurface.surface) === "dde-desktop") {
             return -100 + 1
@@ -44,6 +52,15 @@ SurfaceItemFactory {
         manualMoveResizing = false
     }
 
+    function moveSurfaceToCursor(delegate) {
+        // vertical alignment of the surface within the cursor, y-axis offset
+        const offset = DDEShellV1.surfaceLayerYOffset(wSurface.surface)
+        const x = Helper.cursor.position.x + PersonalizationV1.cursorSize.width / 2
+        const y = Helper.cursor.position.y + PersonalizationV1.cursorSize.height + offset
+        //preventing displayed beyond the edge of the output. eg: xdg-popup
+        move({x, y})
+    }
+
     // put here, otherwise may initialize late
     parent: QmlHelper.workspaceManager.workspacesById.get(wid)
 
@@ -55,6 +72,9 @@ SurfaceItemFactory {
         leftPadding: hasDecoration ? decoration.leftMargin : 0
         rightPadding: hasDecoration ? decoration.rightMargin : 0
         focus: wSurface === Helper.activatedSurface
+        z: (DDEShellV1.isDdeShellSurface(wSurface.surface)
+           && DDEShellV1.isSurfaceLayerInitialized(wSurface.surface))
+           ? (Number.MAX_VALUE - fixForLevel - DDEShellV1.shellLayerCount + DDEShellV1.surfaceLayerIndex(wSurface.surface)) : 0
         resizeMode:
             if (!surfaceItem.effectiveVisible)
                 SurfaceItem.ManualResize
@@ -283,7 +303,16 @@ SurfaceItemFactory {
             if (outputCounter === 1) {
                 const pos = QmlHelper.winposManager.nextPos(wSurface.appId, surfaceItem.parent, surfaceItem)
                 let outputDelegate = output.OutputItem.item
-                move(pos)
+                // Move to the location specified by the client
+                if (DDEShellV1.isDdeShellSurface(wSurface.surface)
+                        && DDEShellV1.isSurfacePosInitialized(wSurface.surface)) {
+                    move(DDEShellV1.surfacePos(wSurface.surface))
+                } else if (DDEShellV1.isDdeShellSurface(wSurface.surface)
+                           && DDEShellV1.isSurfaceYOffsetInitialized(wSurface.surface)) {
+                    moveSurfaceToCursor(outputDelegate)
+                } else {
+                    move(pos)
+                }
 
                 if (Helper.clientName(wSurface.surface) === "dde-desktop") {
                     surfaceItem.x = outputDelegate.x
@@ -351,6 +380,34 @@ SurfaceItemFactory {
             if (root.wSurface === Helper.activatedSurface) {
                 helper.cancelMaximize()
             }
+        }
+    }
+
+    Connections {
+        target: DDEShellV1.isDdeShellSurface(wSurface.surface) ? DDEShellV1 : null
+
+        function onSurfacePositionChanged(handle, pos) {
+            root.move(pos)
+        }
+
+        function onSurfaceLayerChanged(handle, layer) {
+            root.surfaceItem.z = (Number.MAX_VALUE - fixForLevel - DDEShellV1.shellLayerCount + DDEShellV1.surfaceLayerIndex(wSurface.surface))
+        }
+
+        function onSurfaceYOffsetChanged(handle, offset) {
+            moveSurfaceToCursor()
+        }
+
+        function onSurfaceSkipSwitcherChanged(handle, skip) {
+            root.skipSwitcher = skip
+        }
+
+        function onSurfaceSkipDockPreViewChanged(handle, skip) {
+            root.skipDockPreView = skip
+        }
+
+        function onSurfaceSkipMutiTaskViewChanged(handle, skip) {
+            root.skipMutiTaskView = skip
         }
     }
 }

@@ -7,6 +7,7 @@
 #include "foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "global.h"
 #include "inputdevice.h"
+#include "dde-shell/ddeshell.h"
 #include "primary-output/outputmanagement.h"
 #include "virtual-output/virtualoutputmanager.h"
 
@@ -885,6 +886,32 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *watched, QInputEvent *even
         seat->cursor()->setVisible(false);
     }
 
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease) {
+        QMouseEvent *me = static_cast<QMouseEvent *>(event);
+        if (me->button() == Qt::LeftButton) {
+            auto ddeShell = protocolObjectFromeQmlEngine<DDEShellV1 *>("TreeLand.Protocols",
+                                                                       "DDEShellV1");
+            if (event->type() == QEvent::MouseButtonPress) {
+                ddeShell->sendActiveIn(TREELAND_DDE_ACTIVE_V1_REASON_MOUSE, m_seat);
+            } else {
+                ddeShell->sendActiveOut(TREELAND_DDE_ACTIVE_V1_REASON_MOUSE, m_seat);
+            }
+        }
+    }
+
+    if (event->type() == QEvent::Wheel) {
+        auto ddeShell = protocolObjectFromeQmlEngine<DDEShellV1 *>("TreeLand.Protocols",
+                                                                   "DDEShellV1");
+        QWheelEvent *we = static_cast<QWheelEvent *>(event);
+        QPoint delta = we->angleDelta();
+        if (delta.x() + delta.y() < 0) {
+            ddeShell->sendActiveOut(TREELAND_DDE_ACTIVE_V1_REASON_WHEEL, m_seat);
+        }
+        if (delta.x() + delta.y() > 0) {
+            ddeShell->sendActiveIn(TREELAND_DDE_ACTIVE_V1_REASON_WHEEL, m_seat);
+        }
+    }
+
     doGesture(event);
 
     if (moveReiszeState.surfaceItem
@@ -1224,4 +1251,11 @@ bool Helper::isLaunchpad(WLayerSurface *surface) const
     auto scope = QString(surface->handle()->handle()->scope);
 
     return scope == "dde-shell/launchpad";
+}
+
+template<typename T>
+T Helper::protocolObjectFromeQmlEngine(QAnyStringView uri, QAnyStringView typeName)
+{
+    QQmlApplicationEngine *engine = qobject_cast<QQmlApplicationEngine *>(qmlEngine(this));
+    return engine->singletonInstance<T>(uri, typeName);
 }

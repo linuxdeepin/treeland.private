@@ -3,8 +3,6 @@
 
 #include "ddeshell.h"
 
-#include "impl/ddeshellv1.h"
-
 #include <woutput.h>
 #include <wtoplevelsurface.h>
 #include <wxdgsurfaceitem.h>
@@ -124,6 +122,19 @@ void DDEShellV1::create(WServer *server)
                 m_conflictList.remove(handle);
             });
         });
+
+    connect(m_manager, &treeland_dde_shell_manager_v1::positionChanged,
+            this, &DDEShellV1::surfacePositionChanged);
+    connect(m_manager, &treeland_dde_shell_manager_v1::layerChanged,
+            this, &DDEShellV1::surfaceLayerChanged);
+    connect(m_manager, &treeland_dde_shell_manager_v1::yOffsetChanged,
+            this, &DDEShellV1::surfaceYOffsetChanged);
+    connect(m_manager, &treeland_dde_shell_manager_v1::skipSwitcherChanged,
+            this, &DDEShellV1::surfaceSkipSwitcherChanged);
+    connect(m_manager, &treeland_dde_shell_manager_v1::skipDockPreViewChanged,
+            this, &DDEShellV1::surfaceSkipDockPreViewChanged);
+    connect(m_manager, &treeland_dde_shell_manager_v1::skipMutiTaskViewChanged,
+            this, &DDEShellV1::surfaceSkipMutiTaskViewChanged);
 }
 
 void DDEShellV1::checkRegionalConflict(WSurfaceItem *target)
@@ -139,6 +150,176 @@ void DDEShellV1::checkRegionalConflict(WSurfaceItem *target)
             i.key()->sendOverlapped(false);
         }
     }
+}
+
+void DDEShellV1::sendActiveIn(uint32_t reason, QPointer<WSeat> seat)
+{
+    foreach (auto handle, m_manager->m_ddeActiveHandles) {
+        if (handle->treeland_dde_active_is_mapped_to_wseat(seat)) {
+            handle->send_active_in(reason);
+        }
+    }
+}
+
+void DDEShellV1::sendActiveOut(uint32_t reason, QPointer<WSeat> seat)
+{
+    foreach (auto handle, m_manager->m_ddeActiveHandles) {
+        if (handle->treeland_dde_active_is_mapped_to_wseat(seat)) {
+            handle->send_active_out(reason);
+        }
+    }
+}
+
+bool DDEShellV1::isDdeShellSurface(WSurface *surface)
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool DDEShellV1::isSurfacePosInitialized(WSurface *surface)
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+            return handle->m_surfacePos.has_value();
+        }
+    }
+
+    return false;
+}
+
+bool DDEShellV1::isSurfaceLayerInitialized(WSurface *surface)
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+            return handle->m_layer.has_value();
+        }
+    }
+
+    return false;
+}
+
+QPoint DDEShellV1::surfacePos(WSurface *surface) const
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+            return handle->m_surfacePos.value();
+        }
+    }
+
+    return QPoint();
+}
+
+int DDEShellV1::surfaceLayerIndex(WSurface *surface) const
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)
+            && handle->m_layer.has_value()) {
+            return static_cast<int>(handle->m_layer.value());
+        }
+    }
+
+    return 0;
+}
+
+bool DDEShellV1::isSurfaceYOffsetInitialized(WSurface *surface)
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+            return handle->m_yOffset.has_value();
+        }
+    }
+
+    return false;
+}
+
+int32_t DDEShellV1::surfaceLayerYOffset(WSurface *surface) const
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)
+            && handle->m_yOffset.has_value()) {
+            return static_cast<int>(handle->m_yOffset.value());
+        }
+    }
+
+    return 0;
+}
+
+bool DDEShellV1::isSurfaceSkipSwitcherInitialized(WSurface *surface)
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+            return handle->m_skipSwitcher.has_value();
+        }
+    }
+
+    return false;
+}
+
+bool DDEShellV1::isSurfaceSkipDockPreViewInitialized(WSurface *surface)
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+            return handle->m_skipDockPreView.has_value();
+        }
+    }
+
+    return false;
+}
+
+bool DDEShellV1::isSurfaceSkipMutiTaskViewInitialized(WSurface *surface)
+{
+    foreach (auto handle, m_manager->m_surfaceHandles) {
+        if (!handle->m_surface_resource) {
+            continue;
+        }
+
+        if (handle->treeland_dde_shell_surface_is_mapped_to_wsurface(surface)) {
+            return handle->m_skipMutiTaskView.has_value();
+        }
+    }
+
+    return false;
 }
 
 void DDEShellV1::destroy(WServer *server)

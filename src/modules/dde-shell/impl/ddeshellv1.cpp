@@ -7,73 +7,371 @@
 #include <qwdisplay.h>
 #include <qwoutput.h>
 
-#define TREELAND_DDE_SHELL_MANAGER_V1_VERSION 1
-
-template<typename T, typename... Args>
-void createHandle(Args... args)
-{
-    new T(std::forward<decltype(args)>(args)...);
+extern "C" {
+#define static
+#include <wlr/types/wlr_seat.h>
+#include "wlr/types/wlr_compositor.h"
+#undef static
 }
 
-namespace Protocols {
+#define TREELAND_DDE_SHELL_MANAGER_V1_VERSION 1
 
-struct treeland_dde_shell_manager_v1 *manager_from_resource(struct wl_resource *resource);
+Q_LOGGING_CATEGORY(ddeShellImpl, "treeland.protocols.ddeshell.impl", QtDebugMsg);
 
-template<typename T>
-concept window_overlap_checker_concept = std::same_as<T, treeland_window_overlap_checker>;
+static void handle_get_window_overlap_checker(
+    struct wl_client *client, struct wl_resource *manager_resource, uint32_t id);
 
-template<window_overlap_checker_concept T>
-T *handle_from_resource(struct wl_resource *resource);
+static void handle_get_shell_surface(struct wl_client *client,
+                                     struct wl_resource *manager_resource,
+                                     uint32_t id,
+                                     struct wl_resource *surface_resource);
 
-void bind(struct wl_client *client, void *data, uint32_t version, uint32_t id);
-void window_overlap_check(struct wl_client *client,
-                          struct wl_resource *resource,
-                          struct wl_resource *surface,
-                          uint32_t id);
+static void handle_get_treeland_dde_active(struct wl_client *client,
+                                            struct wl_resource *manager_resource,
+                                            uint32_t id,
+                                            struct wl_resource *seat);
 
-void update(struct wl_client *client,
-            struct wl_resource *resource,
-            int32_t width,
-            int32_t height,
-            uint32_t anchor,
-            struct wl_resource *output);
-void destroy(struct wl_client *client, struct wl_resource *resource);
-
-} // namespace Protocols
-
-static const struct treeland_dde_shell_manager_v1_interface treeland_dde_shell_manager_impl = {
-    .get_window_overlap_checker = createHandle<treeland_window_overlap_checker>,
+static const struct treeland_dde_shell_manager_v1_interface treeland_dde_shell_manager_v1_impl = {
+    .get_window_overlap_checker = handle_get_window_overlap_checker,
+    .get_shell_surface = handle_get_shell_surface,
+    .get_treeland_dde_active = handle_get_treeland_dde_active,
 };
 
-static const struct treeland_window_overlap_checker_interface
-    treeland_window_overlap_checker_impl = {
-        .update = Protocols::update,
-        .destroy = Protocols::destroy,
-    };
-
-namespace Protocols {
-
-struct treeland_dde_shell_manager_v1 *manager_from_resource(struct wl_resource *resource)
+static treeland_dde_shell_manager_v1 *manager_from_resource(struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &treeland_dde_shell_manager_v1_interface,
-                                   &treeland_dde_shell_manager_impl));
-    struct treeland_dde_shell_manager_v1 *manager =
+                                   &treeland_dde_shell_manager_v1_impl));
+
+    treeland_dde_shell_manager_v1 *manager =
         static_cast<treeland_dde_shell_manager_v1 *>(wl_resource_get_user_data(resource));
     assert(manager != NULL);
     return manager;
 }
 
-template<window_overlap_checker_concept T>
-T *handle_from_resource(struct wl_resource *resource)
+static void handle_treeland_window_overlap_checker_update(struct wl_client *client, struct wl_resource *resource, int32_t width,
+                                                                    int32_t height, uint32_t anchor, struct wl_resource *output)
+{
+    auto *handle = static_cast<treeland_window_overlap_checker *>(wl_resource_get_user_data(resource));
+
+    handle->m_output = wlr_output_from_resource(output);
+    handle->m_size = QSize(width, height);
+    handle->m_anchor = static_cast<treeland_window_overlap_checker::Anchor>(anchor);
+
+    Q_EMIT handle->refresh();
+}
+
+static const struct treeland_window_overlap_checker_interface treeland_window_overlap_checker_impl = {
+    .update = handle_treeland_window_overlap_checker_update,
+};
+
+static void treeland_window_overlap_checker_resource_destroy(struct wl_resource *resource)
 {
     assert(wl_resource_instance_of(resource,
                                    &treeland_window_overlap_checker_interface,
                                    &treeland_window_overlap_checker_impl));
-    return static_cast<T *>(wl_resource_get_user_data(resource));
+
+    auto *checker = static_cast<struct treeland_window_overlap_checker *>(
+        wl_resource_get_user_data(resource));
+    if (!checker) {
+        return;
+    }
+
+    delete checker;
 }
 
-void bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
+static void handle_get_window_overlap_checker(
+    struct wl_client *client, struct wl_resource *manager_resource, uint32_t id)
+{
+    auto *manager = manager_from_resource(manager_resource);
+    if (!manager) {
+        qCCritical(ddeShellImpl) << "Failed to get treeland_dde_shell_manager_v1";
+        return;
+    }
+
+    auto *checker = new treeland_window_overlap_checker;
+    if (!checker) {
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    uint32_t version = wl_resource_get_version(manager_resource);
+    struct wl_resource *resource =
+        wl_resource_create(client, &treeland_window_overlap_checker_interface, version, id);
+    if (!resource) {
+        delete checker;
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    checker->m_manager = manager;
+    checker->m_resource = resource;
+    wl_resource_set_implementation(resource,
+                                   &treeland_window_overlap_checker_impl,
+                                   checker,
+                                   treeland_window_overlap_checker_resource_destroy);
+    wl_resource_set_user_data(resource, checker);
+    manager->addWindowOverlapChecker(checker);
+}
+
+static void handle_treeland_dde_shell_surface_v1_destroy(struct wl_client *client,
+                                                     struct wl_resource *resource) {
+    wl_resource_destroy(resource);
+}
+
+static treeland_dde_shell_surface *treeland_dde_shell_surface_frome_resource(struct wl_resource *resource) {
+    auto *shell_surface = static_cast<treeland_dde_shell_surface *>(
+        wl_resource_get_user_data(resource));
+    if (!shell_surface) {
+        qCCritical(ddeShellImpl) << "Failed to get treeland_dde_shell_surface";
+        return nullptr;
+    }
+
+    return shell_surface;
+}
+
+static void handle_treeland_dde_shell_surface_v1_set_surface_position(struct wl_client *client,
+                                                                  struct wl_resource *resource,
+                                                                  int32_t x,
+                                                                  int32_t y) {
+    auto *shell_surface = treeland_dde_shell_surface_frome_resource(resource);
+    if (!shell_surface) {
+        return;
+    }
+
+    QPoint globalPos(x, y);
+    if (shell_surface->m_surfacePos == globalPos) {
+        return;
+    }
+
+    shell_surface->m_surfacePos = globalPos;
+    Q_EMIT shell_surface->m_manager->positionChanged(shell_surface, globalPos);
+}
+
+static void handle_treeland_dde_shell_surface_v1_set_layer(struct wl_client *client,
+                                                       struct wl_resource *resource,
+                                                       uint32_t layer) {
+    auto *shell_surface = treeland_dde_shell_surface_frome_resource(resource);
+    if (!shell_surface) {
+        return;
+    }
+
+    treeland_dde_shell_surface::Layer l;
+    switch (layer) {
+    case TREELAND_DDE_SHELL_SURFACE_V1_LAYER_SUPER_OVERLAY:
+        l = treeland_dde_shell_surface::LAYER_SUPER_OVERLAY;
+        break;
+    default:
+        break;
+    }
+
+    if (l == shell_surface->m_layer) {
+        return;
+    }
+
+    shell_surface->m_layer = l;
+    Q_EMIT shell_surface->m_manager->layerChanged(shell_surface, l);
+}
+
+static void handle_treeland_dde_shell_surface_v1_set_auto_placement(struct wl_client *client,
+                                                                struct wl_resource *resource,
+                                                                int32_t y_offset) {
+    auto *shell_surface = treeland_dde_shell_surface_frome_resource(resource);
+    if (!shell_surface) {
+        return;
+    }
+
+    if (y_offset == shell_surface->m_yOffset) {
+        return;
+    }
+
+    shell_surface->m_yOffset = y_offset;
+    Q_EMIT shell_surface->m_manager->yOffsetChanged(shell_surface, y_offset);
+}
+
+static void handle_treeland_dde_shell_surface_v1_set_skip_switcher(struct wl_client *client,
+                                                                struct wl_resource *resource,
+                                                                uint32_t skip) {
+    auto *shell_surface = treeland_dde_shell_surface_frome_resource(resource);
+    if (!shell_surface) {
+        return;
+    }
+
+    if (skip == shell_surface->m_skipSwitcher) {
+        return;
+    }
+
+    shell_surface->m_skipSwitcher = skip;
+    Q_EMIT shell_surface->m_manager->skipSwitcherChanged(shell_surface, skip);
+}
+
+static void handle_treeland_dde_shell_surface_v1_set_skip_dock_preview(struct wl_client *client,
+                                                               struct wl_resource *resource,
+                                                               uint32_t skip) {
+    auto *shell_surface = treeland_dde_shell_surface_frome_resource(resource);
+    if (!shell_surface) {
+        return;
+    }
+
+    if (skip == shell_surface->m_skipDockPreView) {
+        return;
+    }
+
+    shell_surface->m_skipDockPreView = skip;
+    Q_EMIT shell_surface->m_manager->skipDockPreViewChanged(shell_surface, skip);
+}
+
+static void handle_treeland_dde_shell_surface_v1_set_skip_muti_task_view(struct wl_client *client,
+                                                                struct wl_resource *resource,
+                                                                uint32_t skip) {
+    auto *shell_surface = treeland_dde_shell_surface_frome_resource(resource);
+    if (!shell_surface) {
+        return;
+    }
+
+    if (skip == shell_surface->m_skipMutiTaskView) {
+        return;
+    }
+
+    shell_surface->m_skipMutiTaskView = skip;
+    Q_EMIT shell_surface->m_manager->skipMutiTaskViewChanged(shell_surface, skip);
+}
+
+static const struct treeland_dde_shell_surface_v1_interface treeland_dde_shell_surface_v1_interface_impl = {
+    .destroy = handle_treeland_dde_shell_surface_v1_destroy,
+    .set_surface_position = handle_treeland_dde_shell_surface_v1_set_surface_position,
+    .set_layer = handle_treeland_dde_shell_surface_v1_set_layer,
+    .set_auto_placement = handle_treeland_dde_shell_surface_v1_set_auto_placement,
+    .set_skip_switcher = handle_treeland_dde_shell_surface_v1_set_skip_switcher,
+    .set_skip_dock_preview = handle_treeland_dde_shell_surface_v1_set_skip_dock_preview,
+    .set_skip_muti_task_view = handle_treeland_dde_shell_surface_v1_set_skip_muti_task_view,
+};
+
+static void treeland_dde_shell_surface_v1_resource_destroy(struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &treeland_dde_shell_surface_v1_interface,
+                                   &treeland_dde_shell_surface_v1_interface_impl));
+
+    auto *shell_surface = treeland_dde_shell_surface_frome_resource(resource);
+    if (!shell_surface) {
+        return;
+    }
+
+    delete shell_surface;
+}
+
+static void handle_get_shell_surface(struct wl_client *client,
+                                     struct wl_resource *manager_resource,
+                                     uint32_t id,
+                                     struct wl_resource *surface_resource) {
+    auto *manager = manager_from_resource(manager_resource);
+    if (!manager) {
+        qCCritical(ddeShellImpl) << "Failed to get treeland_dde_shell_manager_v1";
+        return;
+    }
+
+    if (!surface_resource) {
+        qCCritical(ddeShellImpl) << "surface resource is NULL";
+        return;
+    }
+
+    auto *shell_surface = new treeland_dde_shell_surface;
+    if (!shell_surface) {
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    shell_surface->m_manager = manager;
+    uint32_t version = wl_resource_get_version(manager_resource);
+    struct wl_resource *resource =
+        wl_resource_create(client, &treeland_dde_shell_surface_v1_interface, version, id);
+    if (!resource) {
+        delete shell_surface;
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    shell_surface->m_resource = resource;
+    shell_surface->m_surface_resource = surface_resource;
+    wl_resource_set_implementation(resource,
+                                   &treeland_dde_shell_surface_v1_interface_impl,
+                                   shell_surface,
+                                   treeland_dde_shell_surface_v1_resource_destroy);
+    wl_resource_set_user_data(resource, shell_surface);
+    manager->addShellSurface(shell_surface);
+}
+
+static void handle_treeland_dde_active_v1_destroy (struct wl_client *client,
+                                                   struct wl_resource *resource)
+{
+    wl_resource_destroy(resource);
+}
+
+static const struct treeland_dde_active_v1_interface treeland_dde_active_v1_interface_impl = {
+    .destroy = handle_treeland_dde_active_v1_destroy,
+};
+
+static void treeland_dde_active_v1_resource_destroy(struct wl_resource *resource)
+{
+    assert(wl_resource_instance_of(resource,
+                                   &treeland_dde_active_v1_interface,
+                                   &treeland_dde_active_v1_interface_impl));
+
+    auto *dde_active = static_cast<treeland_dde_active *>(
+        wl_resource_get_user_data(resource));
+    if (!dde_active) {
+        return;
+    }
+
+    delete dde_active;
+}
+
+static void handle_get_treeland_dde_active(struct wl_client *client,
+                                            struct wl_resource *manager_resource,
+                                            uint32_t id,
+                                            struct wl_resource *seat)
+{
+    auto *manager = manager_from_resource(manager_resource);
+    if (!manager) {
+        qCCritical(ddeShellImpl) << "Failed to get treeland_dde_shell_manager_v1";
+        return;
+    }
+
+    if (!seat) {
+        qCCritical(ddeShellImpl) << "wl_seat resource is NULL";
+        return;
+    }
+
+    auto *dde_active = new treeland_dde_active;
+    if (!dde_active) {
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    uint32_t version = wl_resource_get_version(manager_resource);
+    struct wl_resource *resource =
+        wl_resource_create(client, &treeland_dde_active_v1_interface, version, id);
+    if (!resource) {
+        delete dde_active;
+        wl_resource_post_no_memory(manager_resource);
+        return;
+    }
+
+    dde_active->m_resource = resource;
+    dde_active->m_seat_resource = seat;
+    wl_resource_set_implementation(resource,
+                                   &treeland_dde_active_v1_interface_impl,
+                                   dde_active,
+                                   treeland_dde_active_v1_resource_destroy);
+    wl_resource_set_user_data(resource, dde_active);
+    manager->addDdeActive(dde_active);
+}
+
+static void treeland_dde_shell_manager_v1_bind(struct wl_client *client,
+                                               void *data,
+                                               uint32_t version,
+                                               uint32_t id)
 {
     auto *shell = static_cast<treeland_dde_shell_manager_v1 *>(data);
     struct wl_resource *resource =
@@ -85,7 +383,7 @@ void bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
     }
 
     wl_resource_set_implementation(resource,
-                                   &treeland_dde_shell_manager_impl,
+                                   &treeland_dde_shell_manager_v1_impl,
                                    shell,
                                    [](struct wl_resource *resource) {
                                        wl_list_remove(wl_resource_get_link(resource));
@@ -94,49 +392,112 @@ void bind(struct wl_client *client, void *data, uint32_t version, uint32_t id)
     wl_list_insert(&shell->resources, wl_resource_get_link(resource));
 }
 
-void update(struct wl_client *client,
-            struct wl_resource *resource,
-            int32_t width,
-            int32_t height,
-            uint32_t anchor,
-            struct wl_resource *output)
+treeland_dde_shell_surface::~treeland_dde_shell_surface()
 {
-    auto *handle = handle_from_resource<treeland_window_overlap_checker>(resource);
-
-    handle->m_output = wlr_output_from_resource(output);
-    handle->m_size = QSize(width, height);
-    handle->m_anchor = static_cast<treeland_window_overlap_checker::Anchor>(anchor);
-
-    Q_EMIT handle->refresh();
+    Q_EMIT before_destroy();
 }
 
-void destroy(struct wl_client *client, struct wl_resource *resource) { }
-} // namespace Protocols
-
-treeland_window_overlap_checker::treeland_window_overlap_checker(
-    struct wl_client *client, struct wl_resource *manager_resource, uint32_t id)
+bool treeland_dde_shell_surface::treeland_dde_shell_surface_is_mapped_to_wsurface(WSurface *surface)
 {
-    auto *shell = Protocols::manager_from_resource(manager_resource);
-    if (!shell) {
-        qWarning() << "Failed to get treeland_dde_shell_manager_v1";
-        return;
-    }
+    return surface->handle()->handle() == wlr_surface_from_resource(m_surface_resource);
+}
 
-    m_manager = shell;
+treeland_dde_active::~treeland_dde_active()
+{
+    Q_EMIT before_destroy();
+}
 
-    uint32_t version = wl_resource_get_version(manager_resource);
-    struct wl_resource *resource =
-        wl_resource_create(client, &treeland_window_overlap_checker_interface, version, id);
-    m_resource = resource;
+void treeland_dde_active::send_active_in(uint32_t reason)
+{
+    treeland_dde_active_v1_send_active_in(m_resource, reason);
+}
 
-    wl_resource_set_implementation(m_resource,
-                                   &treeland_window_overlap_checker_impl,
-                                   this,
-                                   [](wl_resource *resource) {
-                                       wl_list_remove(wl_resource_get_link(resource));
-                                   });
+void treeland_dde_active::send_active_out(uint32_t reason)
+{
+    treeland_dde_active_v1_send_active_out(m_resource, reason);
+}
 
-    m_manager->addWindowOverlapChecker(this);
+bool treeland_dde_active::treeland_dde_active_is_mapped_to_wseat(QPointer<WSeat> seat)
+{
+    if (!m_seat_resource)
+        return false;
+
+    return seat.get()->nativeHandle() ==
+        static_cast<struct wlr_seat_client *>(wl_resource_get_user_data(m_seat_resource))->seat;
+}
+
+treeland_dde_shell_manager_v1::treeland_dde_shell_manager_v1(
+    QW_NAMESPACE::qw_display *display, QObject *parent)
+    : QObject(parent)
+{
+    eventLoop = wl_display_get_event_loop(display->handle());
+
+    global = wl_global_create(display->handle(),
+                              &treeland_dde_shell_manager_v1_interface,
+                              TREELAND_DDE_SHELL_MANAGER_V1_VERSION,
+                              this,
+                              treeland_dde_shell_manager_v1_bind);
+
+    wl_list_init(&resources);
+
+    connect(display,
+            &QW_NAMESPACE::qw_display::before_destroy,
+            this,
+            &treeland_dde_shell_manager_v1::before_destroy);
+    connect(display,
+            &QW_NAMESPACE::qw_display::before_destroy,
+            this,
+            &treeland_dde_shell_manager_v1::deleteLater);
+}
+
+treeland_dde_shell_manager_v1::~treeland_dde_shell_manager_v1()
+{
+    Q_EMIT before_destroy();
+
+    wl_list_remove(&resources);
+}
+
+void treeland_dde_shell_manager_v1::addWindowOverlapChecker(
+    treeland_window_overlap_checker *handle)
+{
+    connect(handle, &treeland_window_overlap_checker::before_destroy, this, [this, handle] {
+        m_checkHandles.removeOne(handle);
+    });
+
+    m_checkHandles.append(handle);
+    wl_list_insert(&resources, wl_resource_get_link(handle->m_resource));
+
+    Q_EMIT windowOverlapCheckerCreated(handle);
+}
+
+void treeland_dde_shell_manager_v1::addShellSurface(treeland_dde_shell_surface *handle)
+{
+    connect(handle, &treeland_dde_shell_surface::before_destroy, this, [this, handle] {
+        m_surfaceHandles.removeOne(handle);
+    });
+
+    m_surfaceHandles.append(handle);
+    wl_list_insert(&resources, wl_resource_get_link(handle->m_resource));
+
+    Q_EMIT shellSurfaceCreated(handle);
+}
+
+void treeland_dde_shell_manager_v1::addDdeActive(treeland_dde_active *handle)
+{
+    connect(handle, &treeland_dde_active::before_destroy, this, [this, handle] {
+        m_ddeActiveHandles.removeOne(handle);
+    });
+
+    m_ddeActiveHandles.append(handle);
+    wl_list_insert(&resources, wl_resource_get_link(handle->m_resource));
+
+    Q_EMIT ddeActiveCreated(handle);
+}
+
+treeland_dde_shell_manager_v1 *treeland_dde_shell_manager_v1::create(
+    QW_NAMESPACE::qw_display *display)
+{
+    return new treeland_dde_shell_manager_v1(display);
 }
 
 treeland_window_overlap_checker::~treeland_window_overlap_checker()
@@ -159,52 +520,4 @@ void treeland_window_overlap_checker::sendOverlapped(bool overlapped)
     } else {
         treeland_window_overlap_checker_send_leave(m_resource);
     }
-}
-
-treeland_dde_shell_manager_v1::treeland_dde_shell_manager_v1(QW_NAMESPACE::qw_display *display,
-                                                             QObject *parent)
-    : QObject(parent)
-{
-
-    eventLoop = wl_display_get_event_loop(display->handle());
-
-    global = wl_global_create(display->handle(),
-                              &treeland_dde_shell_manager_v1_interface,
-                              TREELAND_DDE_SHELL_MANAGER_V1_VERSION,
-                              this,
-                              Protocols::bind);
-
-    wl_list_init(&resources);
-
-    connect(display,
-            &QW_NAMESPACE::qw_display::before_destroy,
-            this,
-            &treeland_dde_shell_manager_v1::before_destroy);
-    connect(display,
-            &QW_NAMESPACE::qw_display::before_destroy,
-            this,
-            &treeland_dde_shell_manager_v1::deleteLater);
-}
-
-treeland_dde_shell_manager_v1::~treeland_dde_shell_manager_v1()
-{
-    Q_EMIT before_destroy();
-}
-
-void treeland_dde_shell_manager_v1::addWindowOverlapChecker(treeland_window_overlap_checker *handle)
-{
-    connect(handle, &treeland_window_overlap_checker::before_destroy, this, [this, handle] {
-        m_checkHandles.removeOne(handle);
-    });
-
-    m_checkHandles.append(handle);
-    wl_list_insert(&resources, wl_resource_get_link(handle->m_resource));
-
-    Q_EMIT windowOverlapCheckerCreated(handle);
-}
-
-treeland_dde_shell_manager_v1 *treeland_dde_shell_manager_v1::create(
-    QW_NAMESPACE::qw_display *display)
-{
-    return new treeland_dde_shell_manager_v1(display);
 }

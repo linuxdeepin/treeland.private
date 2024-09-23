@@ -16,7 +16,26 @@
         <request name="get_window_overlap_checker">
             <arg name="id" type="new_id" interface="treeland_window_overlap_checker" />
         </request>
+
+        <request name="get_shell_surface" since="1">
+            <description summary="create a shell surface from a surface">
+                Create a shell surface for an existing surface.
+
+                Only one shell surface can be associated with a given surface.
+            </description>
+            <arg name="id" type="new_id" interface="treeland_dde_shell_surface_v1"/>
+            <arg name="surface" type="object" interface="wl_surface"/>
+        </request>
+
+        <request name="get_treeland_dde_active" since="1">
+            <description summary="create a new dde active">
+                Create a new dde active for a given seat.
+            </description>
+            <arg name="id" type="new_id" interface="treeland_dde_active_v1"/>
+            <arg name="seat" type="object" interface="wl_seat" summary="seat associated with the dde_active"/>
+        </request>
     </interface>
+
     <interface name="treeland_window_overlap_checker" version="1">
         <description summary="An opened toplevel">
             A treeland_dde_shell_handle_v1 object represents an opened toplevel window. Each
@@ -75,5 +94,122 @@
                 destruction of the object.
             </description>
         </request>
+    </interface>
+
+    <interface name="treeland_dde_shell_surface_v1" version="1">
+        <description summary="metadata interface">
+            An interface that may be implemented by a wl_surface, for
+            implementations that provide the shell user interface.
+
+            It provides requests to set surface layer, set the position
+            in output coordinates.
+
+            On the server side the object is automatically destroyed when
+            the related wl_surface is destroyed.  On client side,
+            treeland_dde_shell_surface_v1.destroy() must be called before
+            destroying the wl_surface object.
+        </description>
+
+        <request name="destroy" type="destructor" since="1">
+            <description summary="remove treeland_dde_shell_surface_v1 interface">
+                The treeland_dde_shell_surface_v1 interface is removed from the
+                wl_surface object that was turned into a shell surface with the
+                treeland_shell_v1.get_treeland_dde_shell_surface request.
+
+                The shell surface layer is lost and wl_surface is unmapped.
+            </description>
+        </request>
+
+        <request name="set_surface_position" since="1">
+            <description summary="change the shell surface position">
+                Move the surface to new coordinates.
+
+                Coordinates are global, for example 50,50 for a 1920,0+1920x1080 output
+                is 1970,50 in global coordinates space.
+            </description>
+            <arg name="x" type="int" summary="x coordinate in global space"/>
+            <arg name="y" type="int" summary="y coordinate in global space"/>
+        </request>
+
+        <enum name="layer">
+            <description summary="available layers for surfaces">
+                These values indicate which layers a surface can be rendered in, They
+                are ordered by z depth.
+
+                Displayed above wlr-layer-shell, below the lock screen. super_overlay first.
+
+                Multiple surfaces can share a single layer, and ordering within a single
+                layer is undefined.
+            </description>
+            <entry name="super_overlay" value="1" since="1"/>
+        </enum>
+
+        <request name="set_layer" since="1">
+            <description summary="assign a layer to this surface">
+                Assign a layer to a shell surface.
+            </description>
+            <arg name="layer" type="uint" enum="treeland_dde_shell_surface_v1.layer"/>
+        </request>
+
+        <request name="set_auto_placement" since="1">
+            <description summary="Place the surface at the bottom of the cursor area">
+                Set the vertical alignment of the surface within the cursor width.
+
+                Do not use it together with set_surface_position to avoid exceptions.
+
+                The position of the surface will be controlled by the compositor after the
+                request, including preventing it from being displayed beyond the edge of
+                the output.
+            </description>
+            <arg name="y_offset" type="int" enum="y position is relative to the cursor bottom"/>
+        </request>
+
+        <request name="set_skip_switcher" since="1">
+            <description summary="make the window not appear in a switcher">
+                Setting this bit will indicate that the window prefers not to be listed in a switcher.
+            </description>
+            <arg name="skip" type="uint" summary="Boolean value that sets whether to skip the window switcher."/>
+        </request>
+
+        <request name="set_skip_dock_preview" since="1">
+            <description summary="make the window not appear in a dock preview">
+                Setting this bit will indicate that the window prefers not to be listed in a dock preview.
+            </description>
+            <arg name="skip" type="uint" summary="Boolean value that sets whether to skip the dock preview."/>
+        </request>
+
+        <request name="set_skip_muti_task_view" since="1">
+            <description summary="make the window not appear in a mutitask view">
+                Setting this bit will indicate that the window prefers not to be listed in a mutitask view.
+            </description>
+            <arg name="skip" type="uint" summary="Boolean value that sets whether to skip the mutitask view."/>
+        </request>
+    </interface>
+
+    <interface name="treeland_dde_active_v1" version="1">
+        <description summary="metadata interface">
+            An interface used to monitor special events.
+        </description>
+
+        <request name="destroy" type="destructor" since="1">
+            <description summary="remove treeland_dde_active_v1 interface">
+            </description>
+        </request>
+
+        <enum name="reason">
+            <description summary="event reason"/>
+            <entry name="mouse" value="0" since="1"/>
+            <entry name="wheel" value="1" since="1"/>
+        </enum>
+
+        <event name="active_in" since="1">
+            <description summary="activeIn event"/>
+        <arg name="reason" type="uint" enum="treeland_dde_active_v1.reason"/>
+        </event>
+
+        <event name="active_out" since="1">
+            <description summary="activeOut event"/>
+        <arg name="reason" type="uint" enum="treeland_dde_active_v1.reason"/>
+        </event>
     </interface>
 </protocol>
