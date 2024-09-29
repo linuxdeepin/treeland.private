@@ -1,5 +1,5 @@
-configure_file(TreeLandProtocolsConfig.cmake.in TreeLandProtocolsConfig.cmake)
-configure_file(treeland-protocols.pc.in treeland-protocols.pc)
+configure_file(TreeLandProtocolsConfig.cmake.in TreeLandProtocolsConfig.cmake @ONLY)
+configure_file(treeland-protocols.pc.in treeland-protocols.pc @ONLY)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/TreeLandProtocolsConfig.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/TreeLandProtocols/)
