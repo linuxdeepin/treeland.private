@@ -147,6 +147,7 @@ private:
 
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;
+    QQuickItem *m_dockPreview = nullptr;
 
     // wayland helper
     WServer *m_server = nullptr;
