@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
 
     parser.process(app);
 
-    qmlRegisterModule("Treeland.Protocols", 1, 0);
     qmlRegisterModule("Treeland.Greeter", 1, 0);
+    qmlRegisterModule("Treeland.Protocols", 1, 0);
 
     QmlEngine qmlEngine;
 
