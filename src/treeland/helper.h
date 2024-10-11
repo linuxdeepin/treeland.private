@@ -115,6 +115,7 @@ public:
 public Q_SLOTS:
     void activeSurface(SurfaceWrapper *wrapper);
     void activeSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason);
+    void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
 
 signals:
     void socketEnabledChanged();
@@ -160,6 +161,7 @@ private:
     // qtquick helper
     WOutputRenderWindow *m_renderWindow = nullptr;
     QQuickItem *m_dockPreview = nullptr;
+    QObject *m_windowMenu = nullptr;
 
     // wayland helper
     WServer *m_server = nullptr;
@@ -195,6 +197,7 @@ private:
     int m_currentUserId = -1;
     float m_animationSpeed = 1.0;
     OutputMode m_mode = OutputMode::Extension;
+    std::optional<QPointF> m_fakelastPressedPosition;
 
     QList<WXWayland *> m_xwaylands;
 };
