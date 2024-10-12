@@ -134,7 +134,6 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void socketEnabledChanged();
-    void keyboardFocusSurfaceChanged();
     void activatedSurfaceChanged();
     void primaryOutputChanged();
     void currentUserIdChanged();
@@ -166,6 +165,7 @@ private Q_SLOTS:
     void onShowDesktop();
 
 private:
+    void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
     void enableOutput(WOutput *output);
 
@@ -176,7 +176,7 @@ private:
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
 
     SurfaceWrapper *keyboardFocusSurface() const;
-    void setKeyboardFocusSurface(SurfaceWrapper *newActivateSurface, Qt::FocusReason reason);
+    void reuqestKeyboardFocusForSurface(SurfaceWrapper *newActivateSurface, Qt::FocusReason reason);
     SurfaceWrapper *activatedSurface() const;
     void setActivatedSurface(SurfaceWrapper *newActivateSurface);
 
@@ -223,7 +223,6 @@ private:
     // private data
     QList<Output *> m_outputList;
 
-    QPointer<SurfaceWrapper> m_keyboardFocusSurface;
     QPointer<SurfaceWrapper> m_activatedSurface;
     QPointer<QQuickItem> m_taskSwitch;
 
