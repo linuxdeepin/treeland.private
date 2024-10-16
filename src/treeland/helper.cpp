@@ -232,8 +232,16 @@ void Helper::onXdgSurfaceAdded(WXdgSurface *surface)
         wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XdgPopup);
     }
 
-    wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(surface->surface())
-                             != WXdgDecorationManager::Server);
+    onSurfaceModeChanged(wrapper->surface(),
+                         m_xdgDecorationManager->modeBySurface(surface->surface()));
+
+    auto *attached =
+        new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
+    auto updateBlur = [wrapper, attached] {
+        wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
+    };
+    connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
+    updateBlur();
 
     if (surface->isPopup()) {
         auto parent = surface->parentSurface();
@@ -284,7 +292,7 @@ void Helper::onXdgSurfaceRemoved(WXdgSurface *surface)
         m_foreignToplevel->removeSurface(surface);
         m_treelandForeignToplevel->removeSurface(m_rootSurfaceContainer->getSurface(surface));
 
-        auto wSurface =  surface->surface();
+        auto wSurface = surface->surface();
         if (m_ddeShellV1->isDdeShellSurface(wSurface)) {
             m_ddeShellV1->ddeShellSurfaceFromWSurface(wSurface)->destroy();
         }
@@ -301,6 +309,14 @@ void Helper::onLayerSurfaceAdded(WLayerSurface *surface)
     wrapper->setSkipDockPreView(true);
     wrapper->setSkipMutiTaskView(true);
     updateLayerSurfaceContainer(wrapper);
+
+    auto *attached =
+        new PersonalizationAttached(wrapper->shellSurface(), m_personalization, wrapper);
+    auto updateBlur = [wrapper, attached] {
+        wrapper->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
+    };
+    connect(attached, &PersonalizationAttached::backgroundTypeChanged, wrapper, updateBlur);
+    updateBlur();
 
     connect(surface, &WLayerSurface::layerChanged, this, [this, wrapper] {
         updateLayerSurfaceContainer(wrapper);
