@@ -114,6 +114,10 @@ Helper::Helper(QObject *parent)
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
 
+    connect(m_lockScreen, &LockScreen::unlock, this, [this] {
+        m_currentMode = CurrentMode::Normal;
+    });
+
     connect(m_renderWindow, &QQuickWindow::activeFocusItemChanged, this, [this]() {
         auto wrapper = keyboardFocusSurface();
         m_seat->setKeyboardFocusSurface(wrapper ? wrapper->surface() : nullptr);
@@ -806,11 +810,13 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 return true;
             } else if (kevent->key() == Qt::Key_S) {
                 toggleMultitaskview();
+                m_currentMode = CurrentMode::Multitaskview;
                 return true;
             } else if (kevent->key() == Qt::Key_L) {
                 for (auto &&output : m_rootSurfaceContainer->outputs()) {
                     m_lockScreen->addOutput(output);
                 }
+                m_currentMode = CurrentMode::LockScreen;
                 return true;
             }
         } else if (kevent->key() == Qt::Key_Alt) {
@@ -819,6 +825,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
                 auto output = rootContainer()->primaryOutput();
                 m_taskSwitch = qmlEngine()->createTaskSwitcher(output, contentItem);
                 m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
+                m_currentMode = CurrentMode::WindowSwitch;
             }
         } else if (kevent->key() == Qt::Key_Tab || kevent->key() == Qt::Key_Backtab) {
             if (event->modifiers().testFlag(Qt::AltModifier)) {
@@ -838,25 +845,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             if (kevent->key() == Qt::Key_Escape) {
                 if (m_multitaskview) {
                     m_multitaskview->exit(nullptr);
+                    m_currentMode = CurrentMode::Normal;
                 }
-            }
-        }
-    }
-
-    // handle shortcut
-    if (event->type() == QEvent::KeyRelease) {
-        if (m_currentUserId != -1) {
-            auto kevent = static_cast<QKeyEvent *>(event);
-            QKeySequence sequence(kevent->modifiers() | kevent->key());
-            bool isFind = false;
-            for (auto *action : m_shortcut->actions(m_currentUserId)) {
-                if (action->shortcut() == sequence) {
-                    isFind = true;
-                    action->activate(QAction::Trigger);
-                }
-            }
-            if (isFind) {
-                return true;
             }
         }
     }
@@ -873,35 +863,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         }
     }
 
-    // FIXME: only one meta key
-    // QEvent::ShortcutOverride QKeySequence("Meta")
-    // QEvent::KeyPress QKeySequence("Meta+Meta")
-    // QEvent::KeyRelease QKeySequence("Meta")
-    static QFlags<ShortcutV1::MetaKeyCheck> metaKeyChecks;
-    if (auto e = static_cast<QKeyEvent *>(event)) {
-        if (e->type() == QKeyEvent::ShortcutOverride && e->key() == Qt::Key_Meta) {
-            metaKeyChecks |= ShortcutV1::MetaKeyCheck::ShortcutOverride;
-        } else if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride)
-                   && e->type() == QKeyEvent::KeyPress && e->modifiers() == Qt::MetaModifier
-                   && e->key() == Qt::Key_Meta) {
-            metaKeyChecks |= ShortcutV1::MetaKeyCheck::KeyPress;
-        } else if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride
-                                           | ShortcutV1::MetaKeyCheck::KeyPress)
-                   && e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_Meta) {
-            metaKeyChecks |= ShortcutV1::MetaKeyCheck::KeyRelease;
-        } else {
-            metaKeyChecks = {};
-        }
-
-        if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride
-                                    | ShortcutV1::MetaKeyCheck::KeyPress
-                                    | ShortcutV1::MetaKeyCheck::KeyRelease)) {
-            metaKeyChecks = {}; // reset
-            m_shortcut->triggerMetaKey(m_currentUserId);
-        }
-    }
-    // FIXME: end
-
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease) {
         handleLeftButtonStateChanged(event);
     }
@@ -914,6 +875,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
         auto kevent = static_cast<QKeyEvent *>(event);
         if (kevent->key() == Qt::Key_Alt) {
             QMetaObject::invokeMethod(m_taskSwitch, "exit");
+            m_currentMode = CurrentMode::Normal;
         }
     }
 
@@ -949,6 +911,55 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             m_rootSurfaceContainer->endMoveResize();
             m_fakelastPressedPosition.reset();
         }
+    }
+
+    // handle shortcut
+    if (m_currentMode == CurrentMode::Normal) {
+        if (event->type() == QEvent::KeyRelease) {
+            if (m_currentUserId != -1) {
+                auto kevent = static_cast<QKeyEvent *>(event);
+                QKeySequence sequence(kevent->modifiers() | kevent->key());
+                bool isFind = false;
+                for (auto *action : m_shortcut->actions(m_currentUserId)) {
+                    if (action->shortcut() == sequence) {
+                        isFind = true;
+                        action->activate(QAction::Trigger);
+                    }
+                }
+                if (isFind) {
+                    return true;
+                }
+            }
+        }
+
+        // FIXME: only one meta key
+        // QEvent::ShortcutOverride QKeySequence("Meta")
+        // QEvent::KeyPress QKeySequence("Meta+Meta")
+        // QEvent::KeyRelease QKeySequence("Meta")
+        static QFlags<ShortcutV1::MetaKeyCheck> metaKeyChecks;
+        if (auto e = static_cast<QKeyEvent *>(event)) {
+            if (e->type() == QKeyEvent::ShortcutOverride && e->key() == Qt::Key_Meta) {
+                metaKeyChecks |= ShortcutV1::MetaKeyCheck::ShortcutOverride;
+            } else if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride)
+                       && e->type() == QKeyEvent::KeyPress && e->modifiers() == Qt::MetaModifier
+                       && e->key() == Qt::Key_Meta) {
+                metaKeyChecks |= ShortcutV1::MetaKeyCheck::KeyPress;
+            } else if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride
+                                               | ShortcutV1::MetaKeyCheck::KeyPress)
+                       && e->type() == QKeyEvent::KeyRelease && e->key() == Qt::Key_Meta) {
+                metaKeyChecks |= ShortcutV1::MetaKeyCheck::KeyRelease;
+            } else {
+                metaKeyChecks = {};
+            }
+
+            if (metaKeyChecks.testFlags(ShortcutV1::MetaKeyCheck::ShortcutOverride
+                                        | ShortcutV1::MetaKeyCheck::KeyPress
+                                        | ShortcutV1::MetaKeyCheck::KeyRelease)) {
+                metaKeyChecks = {}; // reset
+                m_shortcut->triggerMetaKey(m_currentUserId);
+            }
+        }
+        // FIXME: end
     }
 
     return false;
