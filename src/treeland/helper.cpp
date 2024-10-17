@@ -178,6 +178,9 @@ void Helper::onOutputAdded(WOutput *output)
     enableOutput(output);
     m_outputManager->newOutput(output);
     m_lockScreen->addOutput(o);
+
+    m_wallpaperColorV1->updateWallpaperColor(output->name(),
+                                             m_personalization->backgroundIsDark(output->name()));
 }
 
 void Helper::onOutputRemoved(WOutput *output)
@@ -555,6 +558,12 @@ void Helper::init()
                 m_wallpaperColorV1->updateWallpaperColor(output, isdark);
             });
 
+    for (auto output : m_rootSurfaceContainer->outputs()) {
+        const QString &outputName = output->output()->name();
+        m_wallpaperColorV1->updateWallpaperColor(outputName,
+                                                 m_personalization->backgroundIsDark(outputName));
+    }
+
     connect(m_windowManagement,
             &WindowManagementV1::desktopStateChanged,
             this,
@@ -817,8 +826,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
     }
     // FIXME: end
 
-    if (event->type() == QEvent::MouseButtonPress ||
-        event->type() == QEvent::MouseButtonRelease) {
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease) {
         handleLeftButtonStateChanged(event);
     }
 
@@ -1281,7 +1289,7 @@ WSeat *Helper::seat() const
     return m_seat;
 }
 
-void Helper::showAllWindows(WorkspaceModel* model, bool show)
+void Helper::showAllWindows(WorkspaceModel *model, bool show)
 {
     auto surfaces = model->surfaces();
 
@@ -1381,4 +1389,3 @@ void Helper::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapp
                 wrapper->setSkipMutiTaskView(skip);
             });
 }
-
