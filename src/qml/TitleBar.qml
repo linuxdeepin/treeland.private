@@ -8,7 +8,7 @@ import Treeland
 import org.deepin.dtk 1.0 as D
 import org.deepin.dtk.style 1.0 as DS
 
-Control {
+Item {
     id: root
 
     required property SurfaceWrapper surface
@@ -17,39 +17,49 @@ Control {
     property D.Palette backgroundColor: DS.Style.highlightPanel.background
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
+    readonly property bool rejectEvent: surfaceItem.flags & SurfaceItem.RejectEvent
 
     height: 30
     width: surfaceItem.width
 
     HoverHandler {
+        enabled: !rejectEvent
+        blocking: true
         // block hover events to resizing mouse area, avoid cursor change
         cursorShape: Qt.ArrowCursor
     }
 
     // Normal mouse click
     TapHandler {
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onTapped: (eventPoint, button) => {
-            if (button === Qt.RightButton) {
-                surface.requestShowWindowMenu(eventPoint.position)
-            } else {
-                Helper.activateSurface(surface)
-            }
+        enabled: !rejectEvent
+        acceptedButtons: Qt.LeftButton
+        gesturePolicy: TapHandler.WithinBounds
+        onTapped: {
+            Helper.activateSurface(surface)
         }
         onPressedChanged: {
             if (pressed)
                 surface.requestMove()
         }
-        onDoubleTapped: (_, button) => {
-            if (button === Qt.LeftButton) {
-                surface.requestToggleMaximize()
-            }
+        onDoubleTapped: {
+            surface.requestToggleMaximize()
+        }
+    }
+
+    TapHandler {
+        enabled: !rejectEvent
+        acceptedButtons: Qt.RightButton
+        gesturePolicy: TapHandler.WithinBounds
+        onTapped: {
+            surface.requestShowWindowMenu(eventPoint.position)
         }
     }
 
     // Touch screen click
     TapHandler {
+        enabled: !rejectEvent
         acceptedButtons: Qt.NoButton
+        gesturePolicy: TapHandler.WithinBounds
         acceptedDevices: PointerDevice.TouchScreen
         onDoubleTapped: surface.requestToggleMaximize()
         onLongPressed: surface.requestShowWindowMenu(point.position)
@@ -63,7 +73,15 @@ Control {
         layer.smooth: !root.noRadius
         opacity: !root.noRadius ? 0 : parent.opacity
 
+        ShaderEffectSource {
+            sourceItem: row
+            hideSource: true
+            anchors.fill: row
+        }
+
         Row {
+            id: row
+            visible: !rejectEvent
             anchors {
                 verticalCenter: parent.verticalCenter
                 right: parent.right

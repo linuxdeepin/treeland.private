@@ -11,6 +11,7 @@ Item {
 
     required property SurfaceWrapper surface
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
+    readonly property bool rejectEvent: surfaceItem.flags & SurfaceItem.RejectEvent
 
     visible: surface && surface.visibleDecoration
     x: shadow.boundingRect.x
@@ -19,6 +20,7 @@ Item {
     height: shadow.boundingRect.height
 
     MouseArea {
+        enabled: !rejectEvent
         property int edges: 0
 
         anchors {
