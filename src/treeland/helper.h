@@ -104,6 +104,8 @@ public:
     enum class OutputMode { Copy, Extension };
     Q_ENUM(OutputMode)
 
+    // FIXME: 我认为应该使用状态机
+    // QState 添加状态切换时，旧状态要执行退出函数。
     enum class CurrentMode { Normal, LockScreen, WindowSwitch, Multitaskview };
     Q_ENUM(CurrentMode)
 
@@ -114,13 +116,9 @@ public:
     Workspace *workspace() const;
     void init();
 
-    TogglableGesture *multiTaskViewGesture() const {
-        return m_multiTaskViewGesture;
-    }
+    TogglableGesture *multiTaskViewGesture() const { return m_multiTaskViewGesture; }
 
-    TogglableGesture *windowGesture() const {
-        return m_windowGesture;
-    }
+    TogglableGesture *windowGesture() const { return m_windowGesture; }
 
     bool socketEnabled() const;
     void setSocketEnabled(bool newSocketEnabled);
@@ -159,7 +157,7 @@ public:
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
-    void showAllWindows(WorkspaceModel* model, bool show = true);
+    void showAllWindows(WorkspaceModel *model, bool show = true);
 
 Q_SIGNALS:
     void socketEnabledChanged();
@@ -239,7 +237,7 @@ private:
     QQuickItem *m_dockPreview = nullptr;
     QObject *m_windowMenu = nullptr;
 
-    //gesture
+    // gesture
     TogglableGesture *m_multiTaskViewGesture = nullptr;
     TogglableGesture *m_windowGesture = nullptr;
 

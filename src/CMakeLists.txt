@@ -10,8 +10,7 @@ endif()
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6 REQUIRED COMPONENTS Core Declarative)
 find_package(DDM REQUIRED COMPONENTS Common)
-find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent)
-find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
+find_package(Qt6 COMPONENTS Quick QuickControls2 ShaderTools Concurrent StateMachine REQUIRED)
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
@@ -102,6 +101,8 @@ qt_add_qml_module(${BIN_NAME}
         treeland/inputdevice.cpp
         treeland/workspaceanimationcontroller.h
         treeland/workspaceanimationcontroller.cpp
+        treeland/rootstate.h
+        treeland/rootstate.cpp
 
         ${DBUS_ADAPTOR}
     QML_FILES
@@ -146,6 +147,7 @@ target_link_libraries(${BIN_NAME}
         Qt6::QuickPrivate
         Qt6::DBus
         Qt6::Concurrent
+        Qt6::StateMachine
         Waylib::WaylibServer
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND

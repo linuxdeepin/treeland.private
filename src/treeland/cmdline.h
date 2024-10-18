@@ -34,4 +34,5 @@ private:
     std::unique_ptr<QCommandLineOption> m_socket;
     std::unique_ptr<QCommandLineOption> m_run;
     std::unique_ptr<QCommandLineOption> m_lockScreen;
+    std::unique_ptr<QCommandLineOption> m_logFile;
 };
