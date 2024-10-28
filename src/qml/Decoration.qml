@@ -12,7 +12,7 @@ Item {
     required property SurfaceWrapper surface
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
 
-    visible: surface && surface.visibleDecoration
+    visible: surface && surface.visibleDecoration && surface.visible
     x: shadow.boundingRect.x
     y: shadow.boundingRect.y
     width: shadow.boundingRect.width
