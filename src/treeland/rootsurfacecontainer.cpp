@@ -229,7 +229,6 @@ void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
 {
     endMoveResize();
     Q_ASSERT(edges != 0);
-
     beginMoveResize(surface, edges);
     surface->shellSurface()->setResizeing(true);
     Helper::instance()->activateSurface(surface);
@@ -316,9 +315,9 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
         if (moveResizeState.resizeEdges & Qt::BottomEdge)
             geometry.moveTop(oldGeometry.top());
         if (moveResizeState.resizeEdges & Qt::LeftEdge)
-            geometry.moveRight(oldGeometry.right());
+            geometry.moveRight(geometry.x() + oldGeometry.width());
         if (moveResizeState.resizeEdges & Qt::TopEdge)
-            geometry.moveBottom(oldGeometry.bottom());
+            geometry.moveBottom(geometry.y() + oldGeometry.height());
 
         if (geometry.topLeft() != newGeometry.topLeft()) {
             newGeometry = geometry;
