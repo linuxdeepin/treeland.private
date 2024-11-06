@@ -442,7 +442,7 @@ Item {
     }
 
     function exit() {
-        if (!root.visible) {
+        if (root.visible && switchView.count === 0) {
             root.switchOn = false
             return
         }
