@@ -816,7 +816,9 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         workspace()->pushActivedSurface(wrapper);
         return;
     }
-    if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
+    if (!wrapper
+        || (wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)
+            && wrapper->hasActiveCapability()))
         setActivatedSurface(wrapper);
     if (!wrapper || wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus))
         reuqestKeyboardFocusForSurface(wrapper, reason);
