@@ -405,7 +405,6 @@ Item {
 
             currentContext.loaderStatus = 0
             currentContext.loaderStatus = 1
-
         }
     }
 
@@ -416,6 +415,11 @@ Item {
         }
 
         var nextIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
+
+        switchView.positionViewAtIndex(nextIndex, ListView.Beginning)
+        if (switchView.contentWidth > root.width && nextIndex !== 0)
+            switchView.contentX -= switchView.delegateMinWidth / 2
+
         switchIndex(nextIndex)
     }
 
@@ -426,6 +430,11 @@ Item {
         }
 
         var nextIndex = (switchView.currentIndex + 1) % switchView.count
+
+        switchView.positionViewAtIndex(nextIndex, ListView.End)
+        if (switchView.contentWidth > root.width && nextIndex !== switchView.count - 1)
+            switchView.contentX += switchView.delegateMinWidth / 2
+
         switchIndex(nextIndex)
     }
 
