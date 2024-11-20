@@ -543,7 +543,6 @@ void Helper::deleteTaskSwitch()
         m_taskSwitch->deleteLater();
         m_taskSwitch = nullptr;
     }
-    setCurrentMode(CurrentMode::Normal);
 }
 
 void Helper::init()
@@ -1018,6 +1017,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
                 auto filter = Helper::instance()->workspace()->currentFilter();
                 filter->setFilterAppId("");
+                setCurrentMode(CurrentMode::Normal);
                 QMetaObject::invokeMethod(m_taskSwitch, "exit");
             }
         }
