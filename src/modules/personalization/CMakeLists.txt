@@ -2,15 +2,14 @@ set(MODULE_NAME personalization)
 
 find_package(TreelandProtocols REQUIRED)
 
-ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml treeland-personalization-manager-protocol)
-
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots)
 find_package(Dtk6Core REQUIRED)
 
 qt_add_library(${MODULE_NAME} SHARED)
 
-set_target_properties(${MODULE_NAME} PROPERTIES
-    OUTPUT_NAME "treeland-protocol-personalization-v1"
+local_qtwayland_server_protocol_treeland(${MODULE_NAME}
+    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml
+    BASENAME treeland-personalization-manager-v1
 )
 
 qt_add_resources(${MODULE_NAME} "default_background"
@@ -23,6 +22,7 @@ target_sources(${MODULE_NAME} PUBLIC
 FILE_SET HEADERS
 FILES
     personalizationmanager.h
+    personalizationmanagerinterface.h
     impl/personalization_manager_impl.h
     impl/appearance_impl.h
     impl/types.h
@@ -31,10 +31,11 @@ FILES
 
 target_sources(${MODULE_NAME} PRIVATE
     personalizationmanager.cpp
+    personalizationmanagerinterfacev1.cpp
     impl/personalization_manager_impl.cpp
     impl/appearance_impl.cpp
     impl/font_impl.cpp
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-personalization-manager-protocol.c
+    ${CMAKE_CURRENT_BINARY_DIR}/wayland-treeland-personalization-manager-v1-server-protocol.c
 )
 
 target_include_directories(${MODULE_NAME} PUBLIC

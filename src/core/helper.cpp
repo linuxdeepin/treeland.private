@@ -3,6 +3,7 @@
 
 #include "helper.h"
 
+#include "personalizationmanagerinterface.h"
 #include "capture.h"
 #include "cmdline.h"
 #include "ddeshellmanagerinterfacev1.h"
@@ -624,6 +625,8 @@ void Helper::init()
         });
     m_personalization = m_server->attach<PersonalizationV1>();
     m_personalization->setUserId(m_currentUserId);
+
+    m_server->attach<Personalization::ManagerInterface>();
 
     connect(
         this,
@@ -1476,17 +1479,6 @@ QSize Helper::cursorSize() const
 WindowManagementV1::DesktopState Helper::showDesktopState() const
 {
     return m_showDesktop;
-}
-
-bool Helper::isLaunchpad(WLayerSurface *surface) const
-{
-    if (!surface) {
-        return false;
-    }
-
-    auto scope = QString(surface->handle()->handle()->scope);
-
-    return scope == "dde-shell/launchpad";
 }
 
 void Helper::handleWindowPicker(WindowPickerInterface *picker)

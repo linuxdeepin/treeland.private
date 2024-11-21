@@ -39,7 +39,37 @@ public:
     void sendWindowThemeType(uint32_t type);
 
     void setWindowTitlebarHeight(uint32_t height);
-    void sendWindowTitlebarHeight(uint32_t height);
+    void sendWindowTitlebarHeight() const;
+
+    inline int32_t roundCornerRadius() const
+    {
+        return m_radius;
+    }
+
+    inline QString iconTheme() const
+    {
+        return m_iconTheme;
+    }
+
+    inline QString activeColor() const
+    {
+        return m_activeColor;
+    }
+
+    inline uint32_t windowOpacity() const
+    {
+        return m_windowOpacity;
+    }
+
+    inline ThemeType windowThemeType() const
+    {
+        return m_windowThemeType;
+    }
+
+    inline uint32_t titlebarHeight() const
+    {
+        return m_titlebarHeight;
+    }
 
 Q_SIGNALS:
     void beforeDestroy();
@@ -60,4 +90,14 @@ Q_SIGNALS:
 private:
     treeland_personalization_manager_v1 *m_manager{ nullptr };
     struct wl_resource *m_resource{ nullptr };
+    struct wl_event_source *idle_source{ nullptr };
+
+    // TODO: move to settings
+    int32_t m_radius{ 0 };
+    QString m_iconTheme;
+    QString m_activeColor;
+    uint32_t m_windowOpacity{ 0 };
+    ThemeType m_windowThemeType{ ThemeType::Auto };
+    uint32_t m_titlebarHeight{ 0 };
+    std::vector<std::function<void(struct wl_resource *)>> m_callbacks;
 };

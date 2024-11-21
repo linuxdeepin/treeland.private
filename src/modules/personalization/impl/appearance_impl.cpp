@@ -115,12 +115,32 @@ personalization_appearance_context_v1::~personalization_appearance_context_v1()
 
 void personalization_appearance_context_v1::setRoundCornerRadius(int32_t radius)
 {
-    Q_EMIT roundCornerRadiusChanged(radius);
+    if (m_radius == radius) {
+        return;
+    }
+
+    m_radius = radius;
+
+    sendState([radius](struct wl_resource *resource) {
+        treeland_personalization_appearance_context_v1_send_round_corner_radius(resource, radius);
+    });
+
+    Q_EMIT roundCornerRadiusChanged();
 }
 
 void personalization_appearance_context_v1::setIconTheme(const char *theme_name)
 {
-    Q_EMIT iconThemeChanged(theme_name);
+    if (m_iconTheme == theme_name) {
+        return;
+    }
+
+    m_iconTheme = theme_name;
+
+    sendState([theme_name](struct wl_resource *resource) {
+        treeland_personalization_appearance_context_v1_send_icon_theme(resource, theme_name);
+    });
+
+    Q_EMIT iconThemeChanged();
 }
 
 void personalization_appearance_context_v1::sendRoundCornerRadius(int32_t radius)
@@ -135,7 +155,17 @@ void personalization_appearance_context_v1::sendIconTheme(const char *icon_theme
 
 void personalization_appearance_context_v1::setActiveColor(const char *color)
 {
-    Q_EMIT activeColorChanged(color);
+    if (m_activeColor == color) {
+        return;
+    }
+
+    m_activeColor = color;
+
+    sendState([color](struct wl_resource *resource) {
+        treeland_personalization_appearance_context_v1_send_active_color(resource, color);
+    });
+
+    Q_EMIT activeColorChanged();
 }
 
 void personalization_appearance_context_v1::sendActiveColor(const char *color)
@@ -145,7 +175,17 @@ void personalization_appearance_context_v1::sendActiveColor(const char *color)
 
 void personalization_appearance_context_v1::setWindowOpacity(uint32_t opacity)
 {
-    Q_EMIT windowOpacityChanged(opacity);
+    if (m_windowOpacity == opacity) {
+        return;
+    }
+
+    m_windowOpacity = opacity;
+
+    sendState([opacity](struct wl_resource *resource) {
+        treeland_personalization_appearance_context_v1_send_window_opacity(resource, opacity);
+    });
+
+    Q_EMIT windowOpacityChanged();
 }
 
 void personalization_appearance_context_v1::sendWindowOpacity(uint32_t opacity)
@@ -155,7 +195,17 @@ void personalization_appearance_context_v1::sendWindowOpacity(uint32_t opacity)
 
 void personalization_appearance_context_v1::setWindowThemeType(uint32_t type)
 {
-    Q_EMIT windowThemeTypeChanged(type);
+    if (m_windowThemeType == type) {
+        return;
+    }
+
+    m_windowThemeType = static_cast<ThemeType>(type);
+
+    sendState([type](struct wl_resource *resource) {
+        treeland_personalization_appearance_context_v1_send_window_theme_type(resource, type);
+    });
+
+    Q_EMIT windowThemeTypeChanged();
 }
 
 void personalization_appearance_context_v1::sendWindowThemeType(uint32_t type)
@@ -165,10 +215,53 @@ void personalization_appearance_context_v1::sendWindowThemeType(uint32_t type)
 
 void personalization_appearance_context_v1::setWindowTitlebarHeight(uint32_t height)
 {
-    Q_EMIT titlebarHeightChanged(height);
+    if (m_titlebarHeight == height) {
+        return;
+    }
+
+    m_titlebarHeight = height;
+
+    sendState([height](struct wl_resource *resource) {
+        treeland_personalization_appearance_context_v1_send_window_titlebar_height(resource,
+                                                                                   height);
+    });
+
+    Q_EMIT titlebarHeightChanged();
 }
 
 void personalization_appearance_context_v1::sendWindowTitlebarHeight(uint32_t height)
 {
-    treeland_personalization_appearance_context_v1_send_window_titlebar_height(m_resource, height);
+    treeland_personalization_appearance_context_v1_send_window_titlebar_height(m_resource,
+                                                                               m_titlebarHeight);
+}
+
+void personalization_appearance_context_v1::sendState(
+    std::function<void(struct wl_resource *)> func)
+{
+    if (idle_source) {
+        m_callbacks.push_back(func);
+        return;
+    }
+
+    idle_source = wl_event_loop_add_idle(
+        m_manager->event_loop,
+        [](void *data) {
+            auto *context = static_cast<personalization_appearance_context_v1 *>(data);
+            struct wl_resource *resource;
+            struct wl_resource *tmp;
+            wl_resource_for_each_safe(resource, tmp, &context->m_manager->resources)
+            {
+                if (wl_resource_instance_of(
+                        resource,
+                        &treeland_personalization_appearance_context_v1_interface,
+                        &personalization_appearance_context_impl)) {
+                    for (auto &&func : std::as_const(context->m_callbacks)) {
+                        func(resource);
+                    }
+                }
+            }
+
+            context->idle_source = nullptr;
+        },
+        this);
 }
