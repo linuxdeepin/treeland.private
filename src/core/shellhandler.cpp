@@ -29,6 +29,8 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
+Q_LOGGING_CATEGORY(qLcShell, "treeland.core.shell", QtWarningMsg)
+
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     : m_rootSurfaceContainer(rootContainer)
     , m_backgroundContainer(new LayerSurfaceContainer(rootContainer))
@@ -212,10 +214,13 @@ void ShellHandler::onXdgPopupSurfaceAdded(WXdgPopupSurface *surface)
                                       SurfaceWrapper::Type::XdgPopup);
 
     auto parent = surface->parentSurface();
-    auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
-    parentWrapper->addSubSurface(wrapper);
+    if (auto parentWrapper = m_rootSurfaceContainer->getSurface(parent)) {
+        // If null is passed as a parent, a parent surface must be specified using
+        // some other protocol(Rather than xdg-shell), before committing the initial state.
+        parentWrapper->addSubSurface(wrapper);
+        wrapper->setOwnsOutput(parentWrapper->ownsOutput());
+    }
     m_popupContainer->addSurface(wrapper);
-    wrapper->setOwnsOutput(parentWrapper->ownsOutput());
 
     Q_ASSERT(wrapper->parentItem());
     Q_EMIT surfaceWrapperAdded(wrapper);
