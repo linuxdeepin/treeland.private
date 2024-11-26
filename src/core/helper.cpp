@@ -586,7 +586,10 @@ void Helper::init()
             &DDEShellManagerInterfaceV1::requestPickWindow,
             this,
             &Helper::handleWindowPicker);
-    connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::lockScreenCreated, this, &Helper::handleLockScreen);
+    connect(m_ddeShellV1,
+            &DDEShellManagerInterfaceV1::lockScreenCreated,
+            this,
+            &Helper::handleLockScreen);
     m_shellHandler->createComponent(engine);
     m_shellHandler->initXdgShell(m_server);
     m_shellHandler->initLayerShell(m_server);
@@ -1316,17 +1319,17 @@ void Helper::handleRequestDrag(WSurface *surface)
 
 void Helper::handleLockScreen(LockScreenInterface *lockScreen)
 {
-    connect(lockScreen, &LockScreenInterface::shutdown, this, [this] () {
+    connect(lockScreen, &LockScreenInterface::shutdown, this, [this]() {
         if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
             m_lockScreen->shutdown();
         }
     });
-    connect(lockScreen, &LockScreenInterface::lock, this, [this] () {
+    connect(lockScreen, &LockScreenInterface::lock, this, [this]() {
         if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
             m_lockScreen->lock();
         }
     });
-    connect(lockScreen, &LockScreenInterface::switchUser, this, [this] () {
+    connect(lockScreen, &LockScreenInterface::switchUser, this, [this]() {
         if (m_lockScreen && currentMode() == Helper::CurrentMode::Normal) {
             m_lockScreen->switchUser();
         }
@@ -1571,6 +1574,12 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         setCurrentMode(CurrentMode::Normal);
 
+        for (auto *surface : m_rootSurfaceContainer->surfaces()) {
+            if (surface->type() == SurfaceWrapper::Type::Layer) {
+                surface->setHideByLockScreen(false);
+            }
+        }
+
         m_workspaceScaleAnimation->stop();
         m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
         m_workspaceScaleAnimation->setEndValue(1.0);
@@ -1606,6 +1615,12 @@ void Helper::showLockScreen()
 
     setCurrentMode(CurrentMode::LockScreen);
     m_lockScreen->lock();
+
+    for (auto *surface : m_rootSurfaceContainer->surfaces()) {
+        if (surface->type() == SurfaceWrapper::Type::Layer) {
+            surface->setHideByLockScreen(true);
+        }
+    }
 
     m_workspaceScaleAnimation->stop();
     m_workspaceScaleAnimation->setStartValue(m_shellHandler->workspace()->scale());
