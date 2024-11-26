@@ -339,11 +339,14 @@ private:
 
     WToplevelSurface *m_shellSurface = nullptr;
     WSurfaceItem *m_surfaceItem = nullptr;
-    QPointer<QQuickItem> m_titleBar;
-    QPointer<QQuickItem> m_decoration;
-    QPointer<QQuickItem> m_blurContent;
-    QPointer<QQuickItem> m_geometryAnimation;
-    QPointer<QQuickItem> m_coverContent;
+    QQuickItem *m_titleBar = nullptr;
+    QQuickItem *m_decoration = nullptr;
+    QQuickItem *m_blurContent = nullptr;
+    QQuickItem *m_geometryAnimation = nullptr;
+    QQuickItem *m_coverContent = nullptr;
+    QQuickItem *m_windowAnimation = nullptr;
+    QQuickItem *m_minimizeAnimation = nullptr;
+    QQuickItem *m_showDesktopAnimation = nullptr;
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
@@ -354,9 +357,6 @@ private:
     QPointF m_positionInOwnsOutput;
     SurfaceWrapper::State m_pendingState;
     QRectF m_pendingGeometry;
-    QPointer<QQuickItem> m_windowAnimation;
-    QPointer<QQuickItem> m_minimizeAnimation;
-    QPointer<QQuickItem> m_showDesktopAnimation;
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
                                          SurfaceWrapper::State,
                                          m_previousSurfaceState,

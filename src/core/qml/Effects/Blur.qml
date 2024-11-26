@@ -34,7 +34,7 @@ RenderBufferBlitter {
     Loader {
         x: blur.x
         y: blur.y
-        active: blitter.radiusEnabled
+        active: false // blitter.radiusEnabled
         sourceComponent: Shape {
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer

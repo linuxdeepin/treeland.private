@@ -180,6 +180,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 
 SurfaceWrapper::~SurfaceWrapper()
 {
+    Q_ASSERT(!m_windowAnimation);
+
     if (m_titleBar) {
         delete m_titleBar;
         m_titleBar = nullptr;
@@ -187,18 +189,11 @@ SurfaceWrapper::~SurfaceWrapper()
     if (m_decoration) {
         delete m_decoration;
         m_decoration = nullptr;
-    }
-    if (m_geometryAnimation) {
-        delete m_geometryAnimation;
-        m_geometryAnimation = nullptr;
+        // Called object is not of the correct type (class destructor may have already run)
     }
     if (m_blurContent) {
         delete m_blurContent;
         m_blurContent = nullptr;
-    }
-    if (m_windowAnimation) {
-        delete m_windowAnimation;
-        m_windowAnimation = nullptr;
     }
     if (m_coverContent) {
         delete m_coverContent;
@@ -483,6 +478,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
     } else {
         if (m_geometryAnimation) {
             m_geometryAnimation->deleteLater();
+            m_geometryAnimation = nullptr;
         }
 
         doSetSurfaceState(newSurfaceState);
@@ -516,12 +512,12 @@ bool SurfaceWrapper::isTiling() const
 
 bool SurfaceWrapper::isAnimationRunning() const
 {
-    return m_geometryAnimation;
+    return m_geometryAnimation != nullptr;
 }
 
 bool SurfaceWrapper::isWindowAnimationRunning() const
 {
-    return !m_windowAnimation.isNull();
+    return m_windowAnimation != nullptr;
 }
 
 void SurfaceWrapper::markWrapperToRemoved()
@@ -531,7 +527,7 @@ void SurfaceWrapper::markWrapperToRemoved()
     m_shellSurface = nullptr;
     Q_EMIT aboutToBeInvalidated();
     if (!isWindowAnimationRunning()) {
-        delete this;
+        this->deleteLater();
     } // else delete this in Animation finish
 }
 
@@ -547,11 +543,13 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 
     if (m_noDecoration) {
         Q_ASSERT(m_decoration);
+        m_decoration->disconnect(this);
         m_decoration->deleteLater();
         m_decoration = nullptr;
     } else {
         Q_ASSERT(!m_decoration);
         m_decoration = m_engine->createDecoration(this, this);
+        m_decoration->setParent(this);
         m_decorationShadowOpacity = m_decoration->property("shadowOpacity").toReal();
         m_decoration->stackBefore(m_surfaceItem);
         connect(m_decoration, &QQuickItem::xChanged, this, &SurfaceWrapper::updateBoundingRect);
@@ -573,11 +571,13 @@ void SurfaceWrapper::updateTitleBar()
         return;
 
     if (m_titleBar) {
+        m_titleBar->disconnect(this);
         m_titleBar->deleteLater();
         m_titleBar = nullptr;
         m_surfaceItem->setTopPadding(0);
     } else {
         m_titleBar = m_engine->createTitleBar(this, m_surfaceItem);
+        // m_titleBar->setParent(this);
         m_titleBar->setZ(static_cast<int>(WSurfaceItem::ZOrder::ContentItem));
         m_surfaceItem->setTopPadding(m_titleBar->height());
         connect(m_titleBar, &QQuickItem::heightChanged, this, [this] {
@@ -696,6 +696,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     }
 
     if (m_windowAnimation) {
+        // m_windowAnimation->setParent(this);
         bool ok = false;
         if (direction == OPEN_ANIMATION) {
             ok = connect(m_windowAnimation,
@@ -777,6 +778,7 @@ void SurfaceWrapper::onAnimationReady()
     if (!resize(m_pendingGeometry.size())) {
         // abort change state if resize failed
         m_geometryAnimation->deleteLater();
+        m_geometryAnimation = nullptr;
         return;
     }
 
@@ -789,6 +791,7 @@ void SurfaceWrapper::onAnimationFinished()
     setXwaylandPositionFromSurface(true);
     Q_ASSERT(m_geometryAnimation);
     m_geometryAnimation->deleteLater();
+    m_geometryAnimation = nullptr;
 }
 
 bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &targetGeometry)
@@ -798,6 +801,7 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
 
     m_geometryAnimation =
         m_engine->createGeometryAnimation(this, geometry(), targetGeometry, container());
+    m_geometryAnimation->setParent(this);
     m_pendingState = targetState;
     m_pendingGeometry = targetGeometry;
     bool ok = connect(m_geometryAnimation, SIGNAL(ready()), this, SLOT(onAnimationReady()));
@@ -845,7 +849,7 @@ void SurfaceWrapper::onHideAnimationFinished()
     onWindowAnimationFinished();
 
     if (m_wrapperAbortToRemove) {
-        delete this;
+        this->deleteLater();
     }
 }
 
@@ -887,6 +891,7 @@ void SurfaceWrapper::onMinimizeAnimationFinished()
 {
     Q_ASSERT(m_minimizeAnimation);
     m_minimizeAnimation->deleteLater();
+    m_minimizeAnimation = nullptr;
 
     setDecorationShadowOpacity(0);
 }
@@ -898,6 +903,7 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
 
     m_minimizeAnimation =
         m_engine->createMinimizeAnimation(this, container(), iconGeometry, direction);
+    m_minimizeAnimation->setParent(this);
 
     bool ok =
         connect(m_minimizeAnimation, SIGNAL(finished()), this, SLOT(onMinimizeAnimationFinished()));
@@ -931,6 +937,7 @@ void SurfaceWrapper::onShowDesktopAnimationFinished()
 {
     Q_ASSERT(m_showDesktopAnimation);
     m_showDesktopAnimation->deleteLater();
+    m_showDesktopAnimation = nullptr;
     updateVisible();
 }
 
@@ -939,10 +946,12 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 
     if (m_showDesktopAnimation) {
         m_showDesktopAnimation->deleteLater();
+        m_showDesktopAnimation = nullptr;
     }
 
     setHideByShowDesk(show);
     m_showDesktopAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
+    m_showDesktopAnimation->setParent(this);
     bool ok = connect(m_showDesktopAnimation,
                       SIGNAL(finished()),
                       this,
@@ -1356,13 +1365,14 @@ bool SurfaceWrapper::showOnWorkspace(int workspaceIndex) const
 
 bool SurfaceWrapper::blur() const
 {
-    return m_blurContent.isNull();
+    return m_blurContent != nullptr;
 }
 
 void SurfaceWrapper::setBlur(bool blur)
 {
     if (blur && !m_blurContent) {
         m_blurContent = m_engine->createBlur(this, this);
+        // m_blurContent->setParent(this);
         m_blurContent->setVisible(isVisible());
     } else if (!blur && m_blurContent) {
         m_blurContent->setVisible(false);
@@ -1375,7 +1385,7 @@ void SurfaceWrapper::setBlur(bool blur)
 
 bool SurfaceWrapper::coverEnabled() const
 {
-    return m_coverContent;
+    return m_coverContent != nullptr;
 }
 
 void SurfaceWrapper::setCoverEnabled(bool coverEnabled)
@@ -1386,6 +1396,7 @@ void SurfaceWrapper::setCoverEnabled(bool coverEnabled)
         m_coverContent = nullptr;
     } else if (coverEnabled && !m_coverContent) {
         m_coverContent = m_engine->createLaunchpadCover(this, m_ownsOutput, container());
+        // m_coverContent->setParent(this);
         m_coverContent->setVisible(isVisible());
     }
 
