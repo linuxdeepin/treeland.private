@@ -317,6 +317,8 @@ private:
 
     IMultitaskView *m_multitaskView{ nullptr };
     UserModel *m_userModel{ nullptr };
+
+    quint32 m_atomDeepinNoTitlebar;
 };
 
 Q_DECLARE_OPAQUE_POINTER(LockScreenInterface *)
