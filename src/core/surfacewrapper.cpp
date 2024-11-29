@@ -536,7 +536,7 @@ void SurfaceWrapper::markWrapperToRemoved()
     m_shellSurface = nullptr;
 
     if (!isWindowAnimationRunning()) {
-        delete this;
+        deleteLater();
     } // else delete this in Animation finish
 }
 
@@ -856,7 +856,7 @@ void SurfaceWrapper::onHideAnimationFinished()
     onWindowAnimationFinished();
 
     if (m_wrapperAbortToRemove) {
-        delete this;
+        deleteLater();
     }
 }
 
