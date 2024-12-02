@@ -3,8 +3,10 @@
 
 import QtQuick
 import Treeland
+import Waylib.Server
+import QtQuick.Effects
 
-ShaderEffectSource {
+Item {
     id: root
 
     enum Direction {
@@ -19,14 +21,12 @@ ShaderEffectSource {
     required property var target
     required property var direction
     property int duration: 400 * Helper.animationSpeed
+    property var enableBlur: false
 
     x: target.x
     y: target.y
     width: target.width
     height: target.height
-    live: direction === NewAnimation.Direction.Show
-    hideSource: true
-    sourceItem: root.target
     transform: [
         Rotation {
             id: rotation
@@ -43,6 +43,33 @@ ShaderEffectSource {
 
     function start() {
         animation.start();
+    }
+
+    Loader {
+        active: root.enableBlur
+        anchors.fill: parent
+        sourceComponent: RenderBufferBlitter {
+            id: blitter
+            anchors.fill: parent
+            MultiEffect {
+                id: blur
+                anchors.fill: parent
+                source: blitter.content
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                saturation: 0.2
+            }
+        }
+    }
+
+    ShaderEffectSource {
+        id: effect
+        anchors.fill: parent
+        live: direction === NewAnimation.Direction.Show
+        hideSource: true
+        sourceItem: root.target
     }
 
     ParallelAnimation {

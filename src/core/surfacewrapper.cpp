@@ -697,6 +697,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         [[fallthrough]];
     case Type::XWayland: {
         m_windowAnimation = m_engine->createNewAnimation(this, container(), direction);
+        m_windowAnimation->setProperty("enableBlur", m_blur);
     } break;
     case Type::Layer: {
         auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
@@ -839,6 +840,7 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
 
     m_geometryAnimation =
         m_engine->createGeometryAnimation(this, geometry(), targetGeometry, container());
+    m_geometryAnimation->setProperty("enableBlur", m_blur);
     m_pendingState = targetState;
     m_pendingGeometry = targetGeometry;
     bool ok = connect(m_geometryAnimation, SIGNAL(ready()), this, SLOT(onAnimationReady()));

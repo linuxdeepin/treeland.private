@@ -3,6 +3,8 @@
 
 import QtQuick
 import Treeland
+import Waylib.Server
+import QtQuick.Effects
 
 Item {
     id: root
@@ -11,6 +13,7 @@ Item {
     required property rect fromGeometry
     required property rect toGeometry
     property int duration: 200 * Helper.animationSpeed
+    property var enableBlur: false
 
     signal ready
     signal finished
@@ -22,6 +25,25 @@ Item {
 
     function start() {
         animation.start();
+    }
+
+    Loader {
+        active: root.enableBlur
+        anchors.fill: parent
+        sourceComponent: RenderBufferBlitter {
+            id: blitter
+            anchors.fill: parent
+            MultiEffect {
+                id: blur
+                anchors.fill: parent
+                source: blitter.content
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                saturation: 0.2
+            }
+        }
     }
 
     ShaderEffectSource {
