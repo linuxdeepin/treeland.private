@@ -137,7 +137,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
         setImplicitWidth(m_surfaceItem->implicitWidth());
     });
-    connect(m_surfaceItem, &WSurfaceItem::heightChanged, this, [this] {
+    connect(m_surfaceItem, &WSurfaceItem::implicitHeightChanged, this, [this] {
         setImplicitHeight(m_surfaceItem->implicitHeight());
     });
     setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
