@@ -12,7 +12,6 @@ Build-Depends: cmake (>= 3.4~),
                libdtkcommon-dev,
                libsystemd-dev [linux-any],
                systemd,
-               libwaylib-dev,
                libwlroots-0.18-dev,
                pkg-config,
                qt6-base-dev (>= 6.6.1~),
@@ -24,7 +23,6 @@ Build-Depends: cmake (>= 3.4~),
                qt6-wayland,
                qt6-wayland-dev,
                qt6-wayland-private-dev,
-               qwlroots,
                wlr-protocols,
                treeland-protocols,
                libpam0g-dev,
@@ -44,6 +42,8 @@ Depends: qml6-module-qtquick-layouts,
          treeland-data (= ${source:Version}),
          xwayland,
          ${shlibs:Depends},
+Conflicts: libwaylib, qwlroots
+Replaces: libwaylib, qwlroots
 Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
 
 Package: treeland-dev
