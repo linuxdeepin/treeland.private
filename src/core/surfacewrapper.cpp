@@ -888,6 +888,10 @@ void SurfaceWrapper::onWindowAnimationFinished()
     Q_EMIT windowAnimationRunningChanged();
 
     setDecorationShadowOpacity(m_decorationShadowOpacity);
+
+    if (m_wrapperAbortToRemove) {
+        deleteLater();
+    }
 }
 
 void SurfaceWrapper::onShowAnimationFinished()
@@ -907,10 +911,6 @@ void SurfaceWrapper::onHideAnimationFinished()
     }
 
     onWindowAnimationFinished();
-
-    if (m_wrapperAbortToRemove) {
-        deleteLater();
-    }
 }
 
 void SurfaceWrapper::onMappedChanged()
