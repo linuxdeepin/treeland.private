@@ -594,11 +594,11 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
                                                               m_atomDeepinNoTitlebar, XCB_ATOM_CARDINAL).isEmpty()) {
                     wrapper->setNoTitleBar(true);
                 } else {
-                    wrapper->setNoTitleBar(xwayland->decorationsType()
-                                           == WXWaylandSurface::DecorationsNoTitle);
+                    wrapper->setNoTitleBar(xwayland->decorationsFlags()
+                                           & WXWaylandSurface::DecorationsNoTitle);
                 }
-                wrapper->setNoDecoration(xwayland->decorationsType()
-                                         == WXWaylandSurface::DecorationsNoBorder);
+                wrapper->setNoDecoration(xwayland->decorationsFlags()
+                                         & WXWaylandSurface::DecorationsNoBorder);
             } else {
                 wrapper->setNoTitleBar(true);
                 wrapper->setNoDecoration(true);
@@ -609,7 +609,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         xwayland->safeConnect(&WXWaylandSurface::bypassManagerChanged,
                               wrapper,
                               updateDecorationTitleBar);
-        xwayland->safeConnect(&WXWaylandSurface::decorationsTypeChanged,
+        xwayland->safeConnect(&WXWaylandSurface::decorationsFlagsChanged,
                               wrapper,
                               updateDecorationTitleBar);
         updateDecorationTitleBar();
