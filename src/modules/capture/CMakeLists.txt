@@ -52,4 +52,4 @@ target_link_libraries(${MODULE_NAME}
         item-selector
 )
 
-install(TARGETS ${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(DIRECTORY ${PROJECT_BINARY_DIR}/qt/qml/TreelandCapture DESTINATION ${QML_INSTALL_DIR})

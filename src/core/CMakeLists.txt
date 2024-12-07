@@ -2,16 +2,49 @@ find_package(QT NAMES Qt6 COMPONENTS Core REQUIRED)
 
 qt_add_dbus_adaptor(DBUS_ADAPTOR "${CMAKE_SOURCE_DIR}/misc/dbus/org.deepin.compositor1.xml" "treeland.h" Treeland::Treeland)
 
-qt_add_library(treelandconfig SHARED
+set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Manager.xml" PROPERTIES
+   INCLUDE "loginddbustypes.h"
+)
+set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Seat.xml" PROPERTIES
+   INCLUDE "loginddbustypes.h"
+)
+
+set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Session.xml" PROPERTIES
+   INCLUDE "loginddbustypes.h"
+)
+
+set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.User.xml" PROPERTIES
+   INCLUDE "loginddbustypes.h"
+)
+
+qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Manager.xml"  "Login1Manager")
+qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Seat.xml"  "Login1Seat")
+qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Session.xml"  "Login1Session")
+qt_add_dbus_interface(DBUS_INTERFACE "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.User.xml"  "Login1User")
+
+qt_add_library(treeland_config SHARED
     treelandconfig.h
     treelandconfig.cpp
 )
 
-target_include_directories(treelandconfig INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+set_target_properties(treeland_config PROPERTIES
+    VERSION ${CMAKE_PROJECT_VERSION}
+    SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR}
+    OUTPUT_NAME treeland-config
+    EXPORT_NAME Config
 )
 
-target_link_libraries(treelandconfig
+target_include_directories(treeland_config INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/treeland/config>
+)
+
+target_link_directories(treeland_config INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
+)
+
+target_link_libraries(treeland_config
     PUBLIC
         Dtk6::Core
         Qt6::Quick
@@ -20,6 +53,25 @@ target_link_libraries(treelandconfig
 add_library(treeland_core SHARED)
 
 qt_add_resources(treeland_core "treeland_assets"
+set_target_properties(treeland-core PROPERTIES
+    VERSION ${CMAKE_PROJECT_VERSION}
+    SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR}
+    OUTPUT_NAME treeland-core
+    EXPORT_NAME Core
+)
+
+target_include_directories(treeland-core INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core>
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/treeland/core>
+)
+
+target_link_directories(treeland-core INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
+)
+
     PREFIX "/dsg/icons"
     BASE ${PROJECT_RESOURCES_DIR}/icons
     FILES
@@ -149,7 +201,7 @@ target_link_libraries(treeland_core
         Dtk6::Core
         Dtk6::Declarative
         Waylib::WaylibServer
-        treelandconfig
+        treeland_config
         foreign-toplevel
         primary-output
         personalization
@@ -160,6 +212,7 @@ target_link_libraries(treeland_core
         dde-shell
         capture
         treeland_interface
+        treeland_common
     PRIVATE
         Qt6::Quick
         Qt6::QuickControls2
@@ -235,14 +288,10 @@ install(FILES
     DESTINATION include/treeland
 )
 
-set_target_properties(treeland_core PROPERTIES
-    EXPORT_NAME Core
-)
-
 install(
     TARGETS
         treeland_core
-        treelandconfig
+        treeland_config
     # EXPORT TreelandTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
@@ -252,3 +301,5 @@ install(
 #     NAMESPACE Treeland::
 #     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/treeland
 # )
+
+install(FILES treelandconfig.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/treeland/config")

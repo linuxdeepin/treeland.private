@@ -18,6 +18,7 @@ pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
+add_subdirectory(common)
 add_subdirectory(core)
 add_subdirectory(interfaces)
 add_subdirectory(plugins)

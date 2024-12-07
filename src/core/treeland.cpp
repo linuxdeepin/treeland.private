@@ -62,6 +62,9 @@ public:
 
     void init()
     {
+        // init logind
+
+
         qmlEngine = new QmlEngine(this);
         QObject::connect(qmlEngine, &QQmlEngine::quit, qApp, &QCoreApplication::quit);
 

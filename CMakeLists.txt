@@ -62,6 +62,7 @@ set(TREELAND_DATA_DIR           "${CMAKE_INSTALL_DATADIR}/treeland/"            
 set(TREELAND_COMPONENTS_TRANSLATION_DIR  "${TREELAND_DATA_DIR}/translations"                  CACHE PATH      "Components translations directory")
 set(TREELAND_PLUGINS_OUTPUT_PATH   "${CMAKE_BINARY_DIR}/lib/plugins"          CACHE PATH      "treeland plugins output directory")
 set(TREELAND_PLUGINS_INSTALL_PATH  "${CMAKE_INSTALL_LIBDIR}/treeland/plugins" CACHE PATH      "treeland plugins install directory")
+set(QML_INSTALL_DIR "${TREELAND_DATA_DIR}/qml" CACHE STRING "Qml plugin install directory")
 
 GNUInstallDirs_get_absolute_install_dir(
     TREELAND_FULL_DATA_DIR
