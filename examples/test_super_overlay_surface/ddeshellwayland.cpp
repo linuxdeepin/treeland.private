@@ -4,6 +4,8 @@
 #include "ddeshellwayland.h"
 
 #include <private/qwaylandwindow_p.h>
+#include <qpa/qplatformnativeinterface.h>
+#include <QGuiApplication>
 
 #include <QHash>
 #include <QPlatformSurfaceEvent>
@@ -244,4 +246,29 @@ void DDEShellWayland::surfaceCreated()
 void DDEShellWayland::surfaceDestroyed()
 {
     m_shellSurface.reset();
+}
+
+void DDEShellWayland::requestResize(QtWayland::treeland_dde_shell_surface_v1::resize_edge edge)
+{
+    if (!m_shellSurface)
+        return;
+
+    auto *window = qobject_cast<QWindow *>(parent());
+    if (!window)
+        return;
+
+    auto *waylandWindow = window->nativeInterface<QNativeInterface::Private::QWaylandWindow>();
+    if (!waylandWindow)
+        return;
+
+    auto *waylandIntegration = QGuiApplication::platformNativeInterface();
+    if (!waylandIntegration)
+        return;
+
+    auto *seat =
+        static_cast<wl_seat *>(waylandIntegration->nativeResourceForIntegration("wl_seat"));
+    if (!seat)
+        return;
+
+    m_shellSurface->resize(seat, 0, edge);
 }

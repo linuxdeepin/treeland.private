@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 
     DDEShelSurfaceWindow window(mode);
     window.setWindowTitle("test for super overlay surface");
-    window.resize(600, 200);
+    window.resize(600, 600);
     window.show();
 
     return app.exec();
