@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+# add to groups if dde user already exists
+if [ "$1" = "configure" ]; then
+  if id dde >/dev/null 2>&1; then
+    for group in dde video render; do
+      usermod -a -G $group dde
+    done
+  fi
+fi
+
+exit 0
