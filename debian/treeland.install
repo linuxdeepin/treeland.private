@@ -8,3 +8,9 @@ usr/share/polkit-1/rules.d/*
 usr/lib/*/lib*
 usr/lib/*/treeland/plugins/lib*.so
 usr/share/treeland/qml
+
+usr/lib/*/lib*.so.*
+usr/include
+usr/lib/*/cmake
+usr/lib/*/lib*.so
+usr/lib/*/pkgconfig

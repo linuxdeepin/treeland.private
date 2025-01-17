@@ -18,12 +18,10 @@ DCORE_USE_NAMESPACE;
 
 int main(int argc, char *argv[])
 {
-#ifdef QT_DEBUG
     DLogManager::registerConsoleAppender();
-#endif
     DLogManager::registerJournalAppender();
 
-    qw_log::init();
+    // qw_log::init();
     WServer::initializeQPA();
     //    QQuickStyle::setStyle("Material");
 
