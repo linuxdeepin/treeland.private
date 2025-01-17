@@ -25,6 +25,7 @@ public:
     void setSkipMutiTaskView(uint32_t skip);
     void setAcceptKeyboardFocus(uint32_t accept);
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void requestResize(QtWayland::treeland_dde_shell_surface_v1::resize_edge edge);
 
 private:
     DDEShellWayland(QWindow *window);

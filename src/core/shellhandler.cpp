@@ -511,6 +511,44 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
             [wrapper](bool accept) {
                 wrapper->setAcceptKeyboardFocus(accept);
             });
+
+    connect(ddeShellSurface,
+            &DDEShellSurfaceInterface::resizeRequest,
+            this,
+            [wrapper](WSeat *seat, DDEShellSurfaceInterface::ResizeEdge edge) {
+                if (auto xdgSurface = qobject_cast<WXdgToplevelSurface*>(wrapper->shellSurface())) {
+                    Qt::Edges edges;
+                    switch (edge) {
+                        case DDEShellSurfaceInterface::ResizeTop:
+                            edges = Qt::TopEdge;
+                            break;
+                        case DDEShellSurfaceInterface::ResizeBottom:
+                            edges = Qt::BottomEdge;
+                            break;
+                        case DDEShellSurfaceInterface::ResizeLeft:
+                            edges = Qt::LeftEdge;
+                            break;
+                        case DDEShellSurfaceInterface::ResizeRight:
+                            edges = Qt::RightEdge;
+                            break;
+                        case DDEShellSurfaceInterface::ResizeTopLeft:
+                            edges = Qt::TopEdge | Qt::LeftEdge;
+                            break;
+                        case DDEShellSurfaceInterface::ResizeTopRight:
+                            edges = Qt::TopEdge | Qt::RightEdge;
+                            break;
+                        case DDEShellSurfaceInterface::ResizeBottomLeft:
+                            edges = Qt::BottomEdge | Qt::LeftEdge;
+                            break;
+                        case DDEShellSurfaceInterface::ResizeBottomRight:
+                            edges = Qt::BottomEdge | Qt::RightEdge;
+                            break;
+                        default:
+                            return;
+                    }
+                    xdgSurface->requestResize(seat, edges, 0);
+                }
+            });
 }
 
 void ShellHandler::setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,

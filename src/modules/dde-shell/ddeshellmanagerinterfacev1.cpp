@@ -288,6 +288,10 @@ protected:
                                                                uint32_t skip) override;
     void treeland_dde_shell_surface_v1_set_accept_keyboard_focus(Resource *resource,
                                                                  uint32_t accept) override;
+    void treeland_dde_shell_surface_v1_resize(Resource *resource,
+                                               struct ::wl_resource *seat_resource,
+                                               uint32_t serial,
+                                               uint32_t edges) override;
 };
 
 DDEShellSurfaceInterfacePrivate::DDEShellSurfaceInterfacePrivate(DDEShellSurfaceInterface *_q,
@@ -407,6 +411,60 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_accept_k
 
     acceptKeyboardFocus = accept;
     Q_EMIT q->acceptKeyboardFocusChanged(accept);
+}
+
+void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_resize(Resource *resource,
+                                                                           struct ::wl_resource *seat_resource,
+                                                                           uint32_t serial,
+                                                                           uint32_t edges)
+{
+    if (!seat_resource) {
+        wl_resource_post_error(resource->handle, 0, "seat resource is NULL!");
+        return;
+    }
+
+    auto *wlrSeat = static_cast<struct wlr_seat_client *>(wl_resource_get_user_data(seat_resource))->seat;
+    auto *seat = WSeat::fromHandle(qw_seat::from(wlrSeat));
+    if (!seat) {
+        wl_resource_post_error(resource->handle, 0, "invalid seat");
+        return;
+    }
+
+    DDEShellSurfaceInterface::ResizeEdge edge;
+    switch (edges) {
+    case 0:
+        edge = DDEShellSurfaceInterface::ResizeNone;
+        break;
+    case 1:
+        edge = DDEShellSurfaceInterface::ResizeTop;
+        break;
+    case 2:
+        edge = DDEShellSurfaceInterface::ResizeBottom;
+        break;
+    case 4:
+        edge = DDEShellSurfaceInterface::ResizeLeft;
+        break;
+    case 5:
+        edge = DDEShellSurfaceInterface::ResizeTopLeft;
+        break;
+    case 6:
+        edge = DDEShellSurfaceInterface::ResizeBottomLeft;
+        break;
+    case 8:
+        edge = DDEShellSurfaceInterface::ResizeRight;
+        break;
+    case 9:
+        edge = DDEShellSurfaceInterface::ResizeTopRight;
+        break;
+    case 10:
+        edge = DDEShellSurfaceInterface::ResizeBottomRight;
+        break;
+    default:
+        wl_resource_post_error(resource->handle, 0, "invalid resize edge: %d", edges);
+        return;
+    }
+
+    Q_EMIT q->resizeRequest(seat, edge);
 }
 
 DDEShellSurfaceInterface::DDEShellSurfaceInterface(wl_resource *surface, wl_resource *resource)

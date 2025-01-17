@@ -6,12 +6,59 @@
 #include "ddeshellwayland.h"
 
 #include <QLineEdit>
+#include <QPushButton>
 
 DDEShelSurfaceWindow::DDEShelSurfaceWindow(TestMode mode, QWidget *parent)
     : QWidget{ parent }
     , m_mode(mode)
 {
     QLineEdit *l = new QLineEdit(this);
+    
+    struct ResizeButton {
+        QString text;
+        QtWayland::treeland_dde_shell_surface_v1::resize_edge edge;
+        QPoint pos;
+    };
+
+    const QList<ResizeButton> buttons = {
+        { "Right",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_right,
+          { 10, 50 } },
+        { "Left",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_left,
+          { 10, 90 } },
+        { "Top",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_top,
+          { 10, 130 } },
+        { "Bottom",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_bottom,
+          { 10, 170 } },
+        { "Top Left",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_top_left,
+          { 10, 210 } },
+        { "Bottom Left",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_bottom_left,
+          { 10, 250 } },
+        { "Top Right",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_top_right,
+          { 10, 290 } },
+        { "Bottom Right",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_bottom_right,
+          { 10, 330 } },
+        { "Cancel",
+          QtWayland::treeland_dde_shell_surface_v1::resize_edge::resize_edge_none,
+          { 10, 370 } }
+    };
+
+    for (const auto &btn : buttons) {
+        QPushButton *resizeBtn = new QPushButton(QString("Resize %1").arg(btn.text), this);
+        resizeBtn->move(btn.pos);
+        connect(resizeBtn, &QPushButton::clicked, this, [this, edge = btn.edge]() {
+            if (auto shell = DDEShellWayland::get(windowHandle())) {
+                shell->requestResize(edge);
+            }
+        });
+    }
 }
 
 void DDEShelSurfaceWindow::showEvent(QShowEvent *event)

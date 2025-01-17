@@ -59,6 +59,19 @@ public:
         OVERLAY,
     };
 
+    enum ResizeEdge {
+        ResizeNone = 0,
+        ResizeTop = 1,
+        ResizeBottom = 2,
+        ResizeLeft = 4,
+        ResizeTopLeft = 5,
+        ResizeBottomLeft = 6,
+        ResizeRight = 8,
+        ResizeTopRight = 9,
+        ResizeBottomRight = 10,
+    };
+    Q_ENUM(ResizeEdge)
+
     ~DDEShellSurfaceInterface() override;
 
     WSurface *wSurface() const;
@@ -82,6 +95,7 @@ Q_SIGNALS:
     void skipDockPreViewChanged(bool skip);
     void skipMutiTaskViewChanged(bool skip);
     void acceptKeyboardFocusChanged(bool accept);
+    void resizeRequest(WSeat *seat, ResizeEdge edge);
 
 private:
     explicit DDEShellSurfaceInterface(wl_resource *surface, wl_resource *resource);
